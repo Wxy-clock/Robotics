@@ -1,51 +1,177 @@
-# Robotics Lab Project: Robotic Arm Multimeter Control
+# Robotic Arm Multimeter Testing System
 
-本项目旨在通过图像识别技术，控制机械臂操作万用表，实现自动化测量与调试。目前项目处于中期开发阶段，正在进行代码重构与环境标准化，以提升可维护性和可扩展性。
+An automated multimeter testing system that uses computer vision and robotic arm control to perform precision multimeter calibration and testing.
 
-## 项目简介
+## Project Overview
 
-- **目标**：利用图像识别，驱动机械臂自动调整和读取万用表，实现实验室测量自动化。
-- **现状**：项目经历了初期快速开发，代码结构较为混乱，现正进行大规模重构和开发环境标准化。
-- **主要技术**：Python、OpenCV（图像识别）、机械臂控制库等。
+This project aims to achieve automated multimeter testing through computer vision recognition and robotic arm control. The system is currently in the development and refactoring phase, with ongoing improvements to code structure, maintainability, and scalability.
 
-## 环境要求
+## Project Goals
+
+- **Objective**: Implement automated multimeter testing using computer vision and robotic arm automation
+- **Current Status**: Under active development with code refactoring and standardization in progress  
+- **Key Technologies**: Python, OpenCV (computer vision), robotic arm control libraries
+
+## System Requirements
 
 - Python 3.8+
-- OpenCV
-- 机械臂控制相关依赖（具体型号和库请参考后续补充）
-- 推荐使用虚拟环境进行依赖管理
+- OpenCV for computer vision processing
+- Robotic arm controller (specific model and control libraries required)
+- Standard signal source for calibration
+- Database system (MySQL)
+- Recommended to use virtual environment for dependency management
 
-## 安装与运行
+## Installation and Setup
 
-1. 克隆仓库：git clone <仓库地址> cd <项目目录>
+1. **Clone Repository**:
+   ```bash
+   git clone <repository_url>
+   cd <project_directory>
+   ```
 
-2. 创建并激活虚拟环境（可选）：python -m venv venv source venv/bin/activate  # Windows 使用 venv\Scripts\activate
+2. **Create Virtual Environment** (optional but recommended):
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # Windows: venv\Scripts\activate
+   ```
 
-3. 安装依赖：pip install -r requirements.txt
+3. **Install Dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-4. 运行主程序（示例）：python wyb_gui.py
+4. **Run Application**:
+   ```bash
+   python multimeter_gui.py
+   ```
 
-## 目录结构
+## Project Structure
 
-- `wyb_gui.py`：主界面与控制逻辑
-- `README.md`：项目说明
-- 其他模块正在重构中
+### Main Modules
+- `multimeter_gui.py` - Main GUI application and user interface logic
+- `image_processing.py` - Computer vision for LCD digit and QR code recognition  
+- `robot_controller.py` - Robotic arm control and coordination
+- `system_config.py` - Configuration constants and system settings
+- `README_REFACTORING.md` - Detailed refactoring documentation
 
-## 贡献说明
+### Key Features
+- **Automated Testing**: Robotic probe insertion and measurement execution
+- **Computer Vision**: LCD digit recognition and QR code scanning
+- **Database Management**: Test data storage and retrieval
+- **Report Generation**: Automated test result reporting
+- **Equipment Management**: Multimeter mounting and positioning control
 
-由于项目正处于重构阶段，欢迎提出 issue 或 pull request。请遵循代码风格和提交规范。
+## Hardware Components
 
-## 进展与计划
+### Required Equipment
+- 6-DOF robotic arm with gripper
+- High-resolution camera for computer vision
+- Precision standard signal source
+- Pressure sensors for feedback
+- Turntable for equipment positioning
+- Microcontroller for hardware coordination
 
-- [x] 初步实现机械臂控制与图像识别集成
-- [ ] 代码结构重构
-- [ ] 环境依赖标准化
-- [ ] 完善文档与测试
+### Communication Interfaces
+- Ethernet connection to robot controller
+- Serial communication with microcontroller  
+- USB camera interface
+- Database server connection
 
-## 联系方式
+## Software Architecture
 
-如有疑问或建议，请联系实验室负责人或提交 issue。
+### GUI Components
+- **System Initializer**: Hardware communication testing and system startup
+- **Multimeter Interface**: Main navigation and operation control
+- **Equipment Manager**: Multimeter mounting and positioning
+- **Measurement Runner**: Automated test execution
+- **Report Generator**: Test result analysis and export
+
+### Control Systems
+- **Robot Controller**: High-level robot arm coordination
+- **Image Processing**: Computer vision algorithms for recognition
+- **Database Manager**: Data storage and retrieval operations
+- **Communication Handler**: Hardware interface management
+
+## Development Status
+
+### Completed Features
+- [x] Basic robotic arm control and computer vision integration
+- [x] Code structure refactoring and naming standardization
+- [x] Configuration management system
+- [x] Comprehensive documentation
+
+### In Progress
+- [ ] Complete module refactoring
+- [ ] Comprehensive testing framework
+- [ ] Performance optimization
+- [ ] Documentation completion
+
+### Planned Features
+- [ ] Advanced error handling and recovery
+- [ ] Remote monitoring capabilities
+- [ ] Enhanced reporting features
+- [ ] Configuration management UI
+
+## Usage Instructions
+
+### System Startup
+1. Ensure all hardware components are connected and powered
+2. Run communication tests from System Initializer
+3. Verify robot arm positioning and camera calibration
+4. Load multimeter configuration data
+
+### Equipment Setup
+1. Use Equipment Manager to mount multimeters on turntable
+2. Perform position calibration using computer vision
+3. Verify probe contact positioning
+4. Initialize measurement parameters
+
+### Running Tests
+1. Select test mode (automatic or manual)
+2. Configure measurement parameters
+3. Execute test sequence
+4. Monitor progress and handle any errors
+5. Generate and export test reports
+
+## Contributing
+
+This project is under active development. Please follow coding standards:
+
+- Use English naming conventions (see NAMING_CONVENTION.md)
+- Add comprehensive documentation for new features
+- Include unit tests for new functionality
+- Follow PEP 8 style guidelines
+
+## Development Roadmap
+
+### Phase 1: Refactoring and Stabilization
+- Complete code refactoring to English naming conventions
+- Implement comprehensive error handling
+- Add logging and monitoring capabilities
+- Create automated test suite
+
+### Phase 2: Feature Enhancement
+- Advanced measurement algorithms
+- Real-time monitoring dashboard
+- Remote operation capabilities
+- Enhanced reporting and analytics
+
+### Phase 3: Production Readiness
+- Performance optimization
+- Security enhancements
+- Deployment automation
+- User training materials
+
+## Contact Information
+
+For technical questions or collaboration inquiries, please contact the development team or submit an issue through the project repository.
+
+## License
+
+This project is developed for research and educational purposes. Please refer to the license file for specific terms and conditions.
 
 ---
 
-本项目尚在开发中，接口和实现可能频繁变动，建议关注最新提交记录。
+**Note**: This project is under active development with frequent updates. Please check the documentation regularly for the latest information and best practices.
+
+*Last updated: 2025-01-XX*

@@ -27,18 +27,27 @@
     <Compile Include="ewm_and_lcd_formal.py" />
     <Compile Include="ewm_and_lcd_test1.py" />
     <Compile Include="export.py" />
+    <Compile Include="image_processing.py" />
+    <Compile Include="multimeter_gui.py" />
     <Compile Include="MvCameraControl_class.py" />
     <Compile Include="MvErrorDefine_const.py" />
     <Compile Include="new_bzy.py" />
     <Compile Include="PixelType_header.py" />
     <Compile Include="robot_act_new.py" />
+    <Compile Include="robot_controller.py" />
     <Compile Include="rotate_zp.py" />
+    <Compile Include="system_config.py" />
     <Compile Include="testGrabImage.py" />
     <Compile Include="wyb_gui.py" />
   </ItemGroup>
   <ItemGroup>
     <InterpreterReference Include="CondaEnv|CondaEnv|production_env" />
     <InterpreterReference Include="CondaEnv|CondaEnv|robot" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="PROJECT_STRUCTURE.md" />
+    <Content Include="README_REFACTORING.md" />
+    <Content Include="requirements-minimal.txt" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
 </Project>
