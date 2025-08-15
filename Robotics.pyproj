@@ -45,6 +45,7 @@
     <InterpreterReference Include="CondaEnv|CondaEnv|robot" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="PROJECT_EVALUATION.md" />
     <Content Include="PROJECT_STRUCTURE.md" />
     <Content Include="README_REFACTORING.md" />
     <Content Include="requirements-minimal.txt" />
