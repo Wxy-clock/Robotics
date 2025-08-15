@@ -38,6 +38,7 @@
     <Compile Include="rotate_zp.py" />
     <Compile Include="system_config.py" />
     <Compile Include="testGrabImage.py" />
+    <Compile Include="turntable_controller.py" />
     <Compile Include="wyb_gui.py" />
   </ItemGroup>
   <ItemGroup>
