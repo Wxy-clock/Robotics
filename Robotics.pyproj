@@ -44,10 +44,13 @@
   <ItemGroup>
     <InterpreterReference Include="CondaEnv|CondaEnv|production_env" />
     <InterpreterReference Include="CondaEnv|CondaEnv|robot" />
+    <InterpreterReference Include="Global|VisualStudio|robot" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="DOCUMENTATION_CONSOLIDATION.md" />
     <Content Include="PROJECT_EVALUATION.md" />
     <Content Include="PROJECT_STRUCTURE.md" />
+    <Content Include="README_COMPREHENSIVE.md" />
     <Content Include="README_REFACTORING.md" />
     <Content Include="requirements-minimal.txt" />
   </ItemGroup>

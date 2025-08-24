@@ -1,6 +1,5 @@
 # Core GUI and Widget Libraries
 PySide2>=5.15.2
-PyQt5>=5.15.7
 # Note: Choose either PySide2 or PyQt5, not both (PySide2 is used in wyb_gui.py)
 
 # Computer Vision and Image Processing
@@ -35,9 +34,6 @@ pyzbar>=0.1.9
 # Scientific Computing
 scipy>=1.8.0
 matplotlib>=3.5.0
-
-# Threading and Async
-threading-timeout>=0.5.0  # If used for enhanced threading capabilities
 
 # File System and Path Handling
 pathlib2>=2.3.6  # For Python 2/3 compatibility if needed
@@ -101,21 +97,13 @@ memory-profiler>=0.60.0  # For debugging memory issues
 # Process Management
 supervisor>=4.2.4  # For process monitoring in production
 
+# Carema SDKs (if applicable)
+
+
 # Note: Version numbers are suggested minimums. 
 # It's recommended to use the latest stable versions compatible with your Python version.
 # Some packages might have conflicting dependencies - test thoroughly in your environment.
 
-# System-specific packages that might be needed:
-# Windows: pywin32>=303
-# Linux: python3-dev, python3-pip
-# For camera interfaces: might need specific SDK packages
 
-# Robot-specific dependencies (if using specific robot SDKs):
-# Universal Robots: urx>=0.11.0
-# ABB Robots: abb-robot-driver>=1.0.0
-# KUKA: pykuka>=1.0.0
 
-# Additional image processing libraries that might be useful:
-# mahotas>=1.4.13  # Computer vision library
-# SimpleITK>=2.1.0  # Medical image processing
-# imgaug>=0.4.0  # Image augmentation
+
