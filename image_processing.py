@@ -18,6 +18,7 @@ Dependencies:
     - PIL (Python Imaging Library)
     - PyTorch (for neural network digit recognition)
     - pyzbar (for QR code recognition)
+    - ultralytics (for YOLO model support)
 """
 
 import os
@@ -33,12 +34,18 @@ from PIL import Image
 import imutils
 from pyzbar import pyzbar
 
-# PyTorch model imports
-import pathlib
-pathlib.PosixPath = pathlib.WindowsPath
-from models.common import DetectMultiBackend
-from utils.general import non_max_suppression, scale_boxes
-from utils.torch_utils import select_device
+# PyTorch model imports - Fixed to use ultralytics instead of missing YOLOv5 modules
+try:
+    from ultralytics import YOLO
+    from ultralytics.utils.torch_utils import select_device
+    ULTRALYTICS_AVAILABLE = True
+except ImportError:
+    print("Warning: ultralytics not available. Neural network digit recognition will be disabled.")
+    ULTRALYTICS_AVAILABLE = False
+    
+    # Fallback dummy functions
+    def select_device():
+        return 'cpu'
 
 # Constants
 BLACK_IMAGE_PATH = "C:/banshouGUI/pic_linshi/black_image.png"
@@ -310,97 +317,114 @@ def recognize_digits_neural_network(image_path, rotation_angle=-9, processing_mo
     Returns:
         str: Recognized digit string or error message
     """
-    # Load pre-trained model
-    weights_path = 'D:/new_wyb_sys/do_image/num_best_L.pt'
-    device = select_device()
-    model = DetectMultiBackend(weights_path, device=device, dnn=False, fp16=False)
+    if not ULTRALYTICS_AVAILABLE:
+        print("Neural network recognition not available. Using fallback method.")
+        return "ERROR: Neural network not available"
     
-    # Model input requirements
-    input_height, input_width = 640, 640
-    
-    # Load and preprocess image
-    original_image = cv2.imread(image_path)
-    
-    # Standardize image size
-    new_height = int(1024 * original_image.shape[0] / original_image.shape[1])
-    resized_image = cv2.resize(original_image.copy(), (1024, new_height))
-    
-    # Crop image to focus on LCD area
-    crop_left, crop_right = 100, 800
-    crop_top, crop_bottom = 200, 800
-    cropped_image = resized_image[crop_top:crop_bottom, crop_left:crop_right]
-    
-    # Rotate image for alignment
-    center = (cropped_image.shape[1] // 2, cropped_image.shape[0] // 2)
-    rotation_matrix = cv2.getRotationMatrix2D(center, rotation_angle, 1.0)
-    rotated_image = cv2.warpAffine(cropped_image, rotation_matrix, 
-                                  (cropped_image.shape[1], cropped_image.shape[0]))
-    
-    # LCD detection if processing_mode == 0
-    if processing_mode == 0:
-        detected_lcd = detect_lcd_screen(rotated_image)
-        
-        if detected_lcd.shape[0] == rotated_image.shape[0]:
-            return 'lack_of_form'
-        
-        if detected_lcd.shape[0] < 200:
-            return 'locate_incorrect'
-        
-        final_image = detected_lcd
-    else:
-        final_image = rotated_image
-    
-    # Prepare image for neural network inference
-    processed_image = _prepare_image_for_inference(final_image, input_width, input_height)
-    
-    # Run inference
-    predictions = model(processed_image, augment=False, visualize=False)
-    predictions = non_max_suppression(predictions, 0.25, 0.45, None, False, max_det=5)
-    
-    # Process detection results
-    detection_results = []
-    for i, detections in enumerate(predictions):
-        if len(detections):
-            detections[:, :4] = scale_boxes(processed_image.shape[2:], detections[:, :4], 
-                                          final_image.shape).round()
-            
-            for *box_coords, confidence, class_id in reversed(detections):
-                if confidence.numpy() < 0.3 or (class_id.numpy() - 2) < 0:
-                    continue
-                
-                x1, y1, x2, y2 = map(int, [coord.numpy() for coord in box_coords])
-                digit_class = class_id.numpy() - 2
-                
-                detection_results.append((x1, y1, x2, y2, digit_class))
-    
-    # Sort detections by x-coordinate (left to right)
-    sorted_detections = sorted(detection_results)
-    
-    # Extract digit sequence
-    digit_sequence = ''
-    for i, detection in enumerate(sorted_detections):
-        # Skip overlapping detections
-        if i > 0 and (detection[0] - sorted_detections[i-1][0]) < 20:
-            continue
-        
-        # Check for overload indicator 'L'
-        if detection[4] == 10:
-            return '0L'
-        
-        digit_sequence += str(int(detection[4]))
-    
-    # Handle leading zeros
-    if digit_sequence.startswith('0') and len(digit_sequence) == 4:
-        digit_sequence = digit_sequence[1:]
-    
-    # Check for all zeros (burned out display)
     try:
-        if int(digit_sequence) == 0 and len(digit_sequence) == 4:
-            return '0000'
-    except ValueError:
-        pass
-    
-    return digit_sequence
+        # Load pre-trained model using ultralytics
+        weights_path = 'D:/new_wyb_sys/do_image/num_best_L.pt'
+        
+        # Check if model file exists
+        if not os.path.exists(weights_path):
+            print(f"Model file not found: {weights_path}")
+            return "ERROR: Model file not found"
+        
+        # Load model with ultralytics
+        model = YOLO(weights_path)
+        device = select_device()
+        
+        # Model input requirements
+        input_height, input_width = 640, 640
+        
+        # Load and preprocess image
+        original_image = cv2.imread(image_path)
+        
+        if original_image is None:
+            return "ERROR: Could not load image"
+        
+        # Standardize image size
+        new_height = int(1024 * original_image.shape[0] / original_image.shape[1])
+        resized_image = cv2.resize(original_image.copy(), (1024, new_height))
+        
+        # Crop image to focus on LCD area
+        crop_left, crop_right = 100, 800
+        crop_top, crop_bottom = 200, 800
+        cropped_image = resized_image[crop_top:crop_bottom, crop_left:crop_right]
+        
+        # Rotate image for alignment
+        center = (cropped_image.shape[1] // 2, cropped_image.shape[0] // 2)
+        rotation_matrix = cv2.getRotationMatrix2D(center, rotation_angle, 1.0)
+        rotated_image = cv2.warpAffine(cropped_image, rotation_matrix, 
+                                      (cropped_image.shape[1], cropped_image.shape[0]))
+        
+        # LCD detection if processing_mode == 0
+        if processing_mode == 0:
+            detected_lcd = detect_lcd_screen(rotated_image)
+            
+            if detected_lcd.shape[0] == rotated_image.shape[0]:
+                return 'lack_of_form'
+            
+            if detected_lcd.shape[0] < 200:
+                return 'locate_incorrect'
+            
+            final_image = detected_lcd
+        else:
+            final_image = rotated_image
+        
+        # Run inference using ultralytics
+        results = model(final_image, conf=0.25, iou=0.45, max_det=5)
+        
+        # Process detection results
+        detection_results = []
+        
+        for result in results:
+            boxes = result.boxes
+            if boxes is not None:
+                for box in boxes:
+                    # Get bounding box coordinates
+                    x1, y1, x2, y2 = box.xyxy[0].cpu().numpy()
+                    confidence = box.conf[0].cpu().numpy()
+                    class_id = box.cls[0].cpu().numpy()
+                    
+                    if confidence < 0.3 or (class_id - 2) < 0:
+                        continue
+                    
+                    digit_class = class_id - 2
+                    detection_results.append((int(x1), int(y1), int(x2), int(y2), digit_class))
+        
+        # Sort detections by x-coordinate (left to right)
+        sorted_detections = sorted(detection_results)
+        
+        # Extract digit sequence
+        digit_sequence = ''
+        for i, detection in enumerate(sorted_detections):
+            # Skip overlapping detections
+            if i > 0 and (detection[0] - sorted_detections[i-1][0]) < 20:
+                continue
+            
+            # Check for overload indicator 'L'
+            if detection[4] == 10:
+                return '0L'
+            
+            digit_sequence += str(int(detection[4]))
+        
+        # Handle leading zeros
+        if digit_sequence.startswith('0') and len(digit_sequence) == 4:
+            digit_sequence = digit_sequence[1:]
+        
+        # Check for all zeros (burned out display)
+        try:
+            if int(digit_sequence) == 0 and len(digit_sequence) == 4:
+                return '0000'
+        except ValueError:
+            pass
+        
+        return digit_sequence
+        
+    except Exception as e:
+        print(f"Error in neural network recognition: {e}")
+        return f"ERROR: {str(e)}"
 
 
 def _prepare_image_for_inference(image, target_width, target_height):

@@ -5,15 +5,16 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{df82b940-723a-4fc9-9808-935343ed1315}</ProjectGuid>
     <ProjectHome />
-    <StartupFile>wyb_gui.py</StartupFile>
+    <StartupFile>multimeter_gui.py</StartupFile>
     <SearchPath />
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
     <ProjectTypeGuids>{888888a0-9f3d-457c-b088-3a5042f75d52}</ProjectTypeGuids>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <InterpreterId>CondaEnv|CondaEnv|robot</InterpreterId>
+    <InterpreterId>Global|VisualStudio|robot</InterpreterId>
     <TestFramework>Pytest</TestFramework>
     <SuppressEnvironmentCreationPrompt>True</SuppressEnvironmentCreationPrompt>
+    <IsWindowsApplication>False</IsWindowsApplication>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'" />
   <PropertyGroup Condition="'$(Configuration)' == 'Release'" />
@@ -24,22 +25,16 @@
     <Compile Include="CameraParams_const.py" />
     <Compile Include="CameraParams_header.py" />
     <Compile Include="convert_new.py" />
-    <Compile Include="ewm_and_lcd_formal.py" />
-    <Compile Include="ewm_and_lcd_test1.py" />
     <Compile Include="export.py" />
     <Compile Include="image_processing.py" />
     <Compile Include="multimeter_gui.py" />
     <Compile Include="MvCameraControl_class.py" />
     <Compile Include="MvErrorDefine_const.py" />
-    <Compile Include="new_bzy.py" />
     <Compile Include="PixelType_header.py" />
-    <Compile Include="robot_act_new.py" />
     <Compile Include="robot_controller.py" />
-    <Compile Include="rotate_zp.py" />
     <Compile Include="system_config.py" />
     <Compile Include="testGrabImage.py" />
     <Compile Include="turntable_controller.py" />
-    <Compile Include="wyb_gui.py" />
   </ItemGroup>
   <ItemGroup>
     <InterpreterReference Include="CondaEnv|CondaEnv|production_env" />
@@ -48,11 +43,6 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="DOCUMENTATION_CONSOLIDATION.md" />
-    <Content Include="PROJECT_EVALUATION.md" />
-    <Content Include="PROJECT_STRUCTURE.md" />
-    <Content Include="README_COMPREHENSIVE.md" />
-    <Content Include="README_REFACTORING.md" />
-    <Content Include="requirements-minimal.txt" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
 </Project>

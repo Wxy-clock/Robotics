@@ -5,12 +5,13 @@ PySide2>=5.15.2
 # Computer Vision and Image Processing
 opencv-python>=4.6.0
 Pillow>=9.0.0
-numpy>=1.21.0
+numpy>=1.21.0,<2.0.0  # Limited version to avoid compatibility issues
+imutils>=0.5.4  # Added missing image processing utilities
 
 # Machine Learning and Deep Learning
 torch>=1.11.0
 torchvision>=0.12.0
-ultralytics>=8.0.0  # YOLOv5 dependencies
+ultralytics>=8.0.0  # YOLOv5/YOLOv8 support - replaces custom YOLOv5 modules
 
 # Database Connectivity
 pymysql>=1.0.2
@@ -96,9 +97,6 @@ memory-profiler>=0.60.0  # For debugging memory issues
 
 # Process Management
 supervisor>=4.2.4  # For process monitoring in production
-
-# Carema SDKs (if applicable)
-
 
 # Note: Version numbers are suggested minimums. 
 # It's recommended to use the latest stable versions compatible with your Python version.
