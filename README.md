@@ -8,7 +8,7 @@ An automated multimeter testing system that uses computer vision and robotic arm
 
 ---
 
-## ?? Table of Contents
+##   Table of Contents
 
 - [Project Overview](#-project-overview)
 - [System Architecture](#-system-architecture)
@@ -25,7 +25,7 @@ An automated multimeter testing system that uses computer vision and robotic arm
 
 ---
 
-## ?? Project Overview
+##   Project Overview
 
 ### Objective
 This project implements fully automated multimeter testing using computer vision recognition and robotic arm automation. The system combines precision robotics, advanced computer vision, and sophisticated data management to create an industrial-grade testing platform.
@@ -39,13 +39,13 @@ This project implements fully automated multimeter testing using computer vision
 - **Quality Assurance**: Precision measurement with pressure feedback monitoring
 
 ### Current Status
-**?? 70% Complete - Active Development Phase**
+**  70% Complete - Active Development Phase**
 
 The system has strong foundational components with core functionality implemented. Primary remaining work focuses on GUI completion and system integration testing.
 
 ---
 
-## ??? System Architecture
+##  ? System Architecture
 
 ### Core Components
 
@@ -71,7 +71,7 @@ graph TB
 
 ---
 
-## ?? Installation & Setup
+##   Installation & Setup
 
 ### Prerequisites
 - Python 3.8 or higher
@@ -123,7 +123,7 @@ graph TB
 
 ---
 
-## ?? Hardware Requirements
+##   Hardware Requirements
 
 ### Required Equipment
 | Component | Specification | Purpose |
@@ -148,16 +148,16 @@ graph TB
 
 ---
 
-## ?? Software Components
+##   Software Components
 
 ### GUI Applications (`multimeter_gui.py`)
 | Class | Purpose | Status |
 |-------|---------|--------|
 | `SystemInitializer` | Hardware communication testing and startup | ? Complete |
 | `MultimeterInterface` | Main navigation and operation control | ? Complete |
-| `EquipmentManager` | Multimeter mounting and positioning | ?? Partial |
-| `MeasurementRunner` | Automated test execution | ?? Partial |
-| `ManualMeasurementRunner` | Manual measurement operations | ?? Partial |
+| `EquipmentManager` | Multimeter mounting and positioning |   Partial |
+| `MeasurementRunner` | Automated test execution |   Partial |
+| `ManualMeasurementRunner` | Manual measurement operations |   Partial |
 | `TurntableController` | Turntable rotation control | ? Complete |
 | `NewMultimeterRegistration` | New equipment model registration | ? Complete |
 | `ReportGenerator` | Test result analysis and export | ? Planned |
@@ -183,43 +183,43 @@ graph TB
 
 ---
 
-## ?? Project Structure
+##   Project Structure
 
 ### Current File Organization
 
 ```
 Robotics/
-©À©¤©¤ ?? Core Application Files
-©¦   ©À©¤©¤ multimeter_gui.py          # Main GUI application (refactored)
-©¦   ©À©¤©¤ image_processing.py        # Computer vision module (refactored)
-©¦   ©À©¤©¤ robot_controller.py        # Robot control module (refactored)
-©¦   ©¸©¤©¤ system_config.py           # Configuration constants
-©¦
-©À©¤©¤ ?? Legacy Files (Pre-Refactoring)
-©¦   ©À©¤©¤ wyb_gui.py                 # Original GUI (Chinese naming)
-©¦   ©À©¤©¤ ewm_and_lcd_formal.py      # Original image processing
-©¦   ©¸©¤©¤ robot_act_new.py           # Original robot controller
-©¦
-©À©¤©¤ ?? Supporting Modules
-©¦   ©À©¤©¤ standard_source_controller.py  # Signal source control
-©¦   ©À©¤©¤ export.py                   # Data export functionality
-©¦   ©À©¤©¤ MvCameraControl_class.py    # Camera SDK integration
-©¦   ©¸©¤©¤ [camera control files]      # Hardware interface modules
-©¦
-©À©¤©¤ ?? Documentation
-©¦   ©À©¤©¤ README.md                   # This comprehensive guide
-©¦   ©À©¤©¤ NAMING_CONVENTION.md        # Coding standards
-©¦   ©À©¤©¤ PROJECT_EVALUATION.md       # Development status analysis
-©¦   ©¸©¤©¤ [other documentation]       # Additional guides
-©¦
-©À©¤©¤ ?? Configuration
-©¦   ©À©¤©¤ requirements.txt            # Python dependencies
-©¦   ©¸©¤©¤ fairino_related/           # Robot SDK and examples
-©¦
-©¸©¤©¤ ?? Resources
-    ©À©¤©¤ ui/                        # GUI interface files
-    ©À©¤©¤ models/                    # ML models for digit recognition
-    ©¸©¤©¤ [data directories]         # Test data and exports
+         Core Application Files
+            multimeter_gui.py          # Main GUI application (refactored)
+            image_processing.py        # Computer vision module (refactored)
+            robot_controller.py        # Robot control module (refactored)
+            system_config.py           # Configuration constants
+  
+         Legacy Files (Pre-Refactoring)
+            wyb_gui.py                 # Original GUI (Chinese naming)
+            ewm_and_lcd_formal.py      # Original image processing
+            robot_act_new.py           # Original robot controller
+  
+         Supporting Modules
+            standard_source_controller.py  # Signal source control
+            export.py                   # Data export functionality
+            MvCameraControl_class.py    # Camera SDK integration
+            [camera control files]      # Hardware interface modules
+  
+         Documentation
+            README.md                   # This comprehensive guide
+            NAMING_CONVENTION.md        # Coding standards
+            PROJECT_EVALUATION.md       # Development status analysis
+            [other documentation]       # Additional guides
+  
+         Configuration
+            requirements.txt            # Python dependencies
+            fairino_related/           # Robot SDK and examples
+  
+         Resources
+           ui/                        # GUI interface files
+           models/                    # ML models for digit recognition
+           [data directories]         # Test data and exports
 ```
 
 ### File Transformation Mapping
@@ -232,7 +232,7 @@ Robotics/
 
 ---
 
-## ?? Development Status
+##   Development Status
 
 ### ? Completed Components (70% of Core Functionality)
 
@@ -269,13 +269,13 @@ Robotics/
 - ? Turntable manual control
 - ? New multimeter registration workflow
 
-### ?? Partially Complete Components (Need Finishing)
+###   Partially Complete Components (Need Finishing)
 
 #### **GUI Interfaces**
-- ?? Equipment Manager (mounting/unmounting interface)
-- ?? Automated Measurement Runner (execution interface)
-- ?? Manual Measurement Runner (manual control interface)
-- ?? Progress monitoring and error display
+-   Equipment Manager (mounting/unmounting interface)
+-   Automated Measurement Runner (execution interface)
+-   Manual Measurement Runner (manual control interface)
+-   Progress monitoring and error display
 
 ### ? Missing Components (Require Implementation)
 
@@ -295,16 +295,16 @@ Robotics/
 
 | **System Component** | **Readiness Level** | **Can Operate Independently** |
 |---------------------|---------------------|-------------------------------|
-| Image Processing | ?? Production Ready | ? Yes - Full functionality |
-| Robot Control | ?? Production Ready | ? Yes - All operations supported |
-| Hardware Communication | ?? Production Ready | ? Yes - All devices supported |
-| Database Operations | ?? Production Ready | ? Yes - Complete CRUD operations |
-| Basic GUI | ?? Partially Ready | ?? Core functions only |
-| Complete Workflow | ?? Not Ready | ? Missing integration components |
+| Image Processing |   Production Ready | ? Yes - Full functionality |
+| Robot Control |   Production Ready | ? Yes - All operations supported |
+| Hardware Communication |   Production Ready | ? Yes - All devices supported |
+| Database Operations |   Production Ready | ? Yes - Complete CRUD operations |
+| Basic GUI |   Partially Ready |   Core functions only |
+| Complete Workflow |   Not Ready | ? Missing integration components |
 
 ---
 
-## ?? Usage Guide
+##   Usage Guide
 
 ### System Startup Procedure
 
@@ -371,7 +371,7 @@ result = manual_runner.read_display()
 
 ---
 
-## ?? Refactoring Documentation
+##   Refactoring Documentation
 
 ### Naming Convention Transformation
 
@@ -430,15 +430,15 @@ is_valid, errors = validate_environment()
 
 ### Benefits of Refactoring
 
-1. **?? International Accessibility**: English naming enables global collaboration
-2. **?? Self-Documenting Code**: Descriptive names reduce need for extensive comments
-3. **?? Improved Maintainability**: Modular structure simplifies updates and debugging
-4. **?? Consistent Standards**: Follows PEP 8 and international conventions
-5. **?? Enhanced IDE Support**: Better autocomplete and error detection
+1. **  International Accessibility**: English naming enables global collaboration
+2. **  Self-Documenting Code**: Descriptive names reduce need for extensive comments
+3. **  Improved Maintainability**: Modular structure simplifies updates and debugging
+4. **  Consistent Standards**: Follows PEP 8 and international conventions
+5. **  Enhanced IDE Support**: Better autocomplete and error detection
 
 ---
 
-## ?? Contributing
+##   Contributing
 
 ### Development Standards
 
@@ -505,7 +505,7 @@ class TestImageProcessing(unittest.TestCase):
 
 ---
 
-## ??? Development Roadmap
+##  ? Development Roadmap
 
 ### **Phase 1: Core Completion (4-6 weeks)**
 - [ ] Complete missing GUI classes (EquipmentManager, MeasurementRunner)
@@ -533,7 +533,7 @@ class TestImageProcessing(unittest.TestCase):
 
 ---
 
-## ?? Production Deployment
+##   Production Deployment
 
 ### **System Requirements**
 - **Hardware**: Industrial-grade computer with USB 3.0, Ethernet
@@ -550,7 +550,7 @@ class TestImageProcessing(unittest.TestCase):
 
 ---
 
-## ?? Support
+##   Support
 
 ### **Documentation Resources**
 - **Technical Documentation**: Inline code documentation and API references
@@ -572,7 +572,7 @@ For production deployments and custom implementations, contact the development t
 
 ---
 
-## ?? Appendices
+##   Appendices
 
 ### **A. Hardware Specifications**
 - Detailed robot arm specifications and setup procedures
@@ -596,13 +596,13 @@ For production deployments and custom implementations, contact the development t
 
 ---
 
-## ?? License
+##   License
 
 This project is developed for research and educational purposes. See the LICENSE file for specific terms and conditions.
 
 ---
 
-## ?? Quick Reference
+##   Quick Reference
 
 | **Component** | **File** | **Primary Classes/Functions** |
 |---------------|----------|-------------------------------|

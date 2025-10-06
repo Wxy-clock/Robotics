@@ -24,38 +24,38 @@ APPLICATION_AUTHOR = "Robotics Lab"
 # =============================================================================
 
 # Base directories
-UI_BASE_DIRECTORY = Path("C:/banshouGUI/ui/")
-PHOTO_BASE_DIRECTORY = Path("E:/photo/")
-TEMP_IMAGE_DIRECTORY = Path("C:/banshouGUI/pic_linshi/")
-PROBLEM_PHOTO_DIRECTORY = Path("E:/photo/problem/")
-TEST_PHOTO_DIRECTORY = Path("E:/photo_test/")
-SYSTEM_DATA_DIRECTORY = Path("D:/new_wyb_sys/")
+UI_BASE_DIRECTORY = Path("ui/")
+PHOTO_BASE_DIRECTORY = Path("data/photos/")
+TEMP_IMAGE_DIRECTORY = Path("data/temp/images/")
+PROBLEM_PHOTO_DIRECTORY = Path("data/photos/problem/")
+TEST_PHOTO_DIRECTORY = Path("data/test_photos/")
+SYSTEM_DATA_DIRECTORY = Path("data/system_data/")
 
 # UI file paths
 SYSTEM_UI_FILE = UI_BASE_DIRECTORY / "system.ui"
-MULTIMETER_UI_FILE = UI_BASE_DIRECTORY / "wyb.ui"
-EQUIPMENT_UI_FILE = UI_BASE_DIRECTORY / "equip.ui"
-MEASUREMENT_UI_FILE = UI_BASE_DIRECTORY / "run.ui"
-MANUAL_MEASUREMENT_UI_FILE = UI_BASE_DIRECTORY / "run_manual.ui"
-TURNTABLE_UI_FILE = UI_BASE_DIRECTORY / "rotate_zp.ui"
-NEW_MULTIMETER_UI_FILE = UI_BASE_DIRECTORY / "wyb_new.ui"
-REPORT_UI_FILE = UI_BASE_DIRECTORY / "report.ui"
-DATA_MANAGER_UI_FILE = UI_BASE_DIRECTORY / "renew.ui"
-QUERY_UI_FILE = UI_BASE_DIRECTORY / "find_way.ui"
-QUERY_RESULT_UI_FILE = UI_BASE_DIRECTORY / "find_result.ui"
+MULTIMETER_UI_FILE = UI_BASE_DIRECTORY / "multimeter_interface.ui"
+EQUIPMENT_UI_FILE = UI_BASE_DIRECTORY / "equipment_manager.ui"
+MEASUREMENT_UI_FILE = UI_BASE_DIRECTORY / "measurement_runner.ui"
+MANUAL_MEASUREMENT_UI_FILE = UI_BASE_DIRECTORY / "manual_measurement_runner.ui"
+TURNTABLE_UI_FILE = UI_BASE_DIRECTORY / "turntable_controller.ui"
+NEW_MULTIMETER_UI_FILE = UI_BASE_DIRECTORY / "new_multimeter_registration.ui"
+REPORT_UI_FILE = UI_BASE_DIRECTORY / "report_generator.ui"
+DATA_MANAGER_UI_FILE = UI_BASE_DIRECTORY / "data_manager.ui"
+QUERY_UI_FILE = UI_BASE_DIRECTORY / "data_query.ui"
+QUERY_RESULT_UI_FILE = UI_BASE_DIRECTORY / "query_result.ui"
 
 # Image file paths
-BACKGROUND_IMAGE_PATH = UI_BASE_DIRECTORY / "µÇÂ¼µ×°å.png"
-EQUIPMENT_IMAGE_PATH = PHOTO_BASE_DIRECTORY / "zp.jpg"
-BLACK_IMAGE_PATH = TEMP_IMAGE_DIRECTORY / "black_image.png"
-RECOGNITION_RESULT_PATH = TEMP_IMAGE_DIRECTORY / "shibie.png"
+BACKGROUND_IMAGE_PATH = UI_BASE_DIRECTORY / "login_background.png"
+EQUIPMENT_IMAGE_PATH = PHOTO_BASE_DIRECTORY / "equipment.jpg"
+BLACK_IMAGE_PATH = TEMP_IMAGE_DIRECTORY / "black.png"
+RECOGNITION_RESULT_PATH = TEMP_IMAGE_DIRECTORY / "recognition_result.png"
 
 # Model file paths
-DIGIT_RECOGNITION_MODEL_PATH = SYSTEM_DATA_DIRECTORY / "do_image/num_best_L.pt"
+DIGIT_RECOGNITION_MODEL_PATH = SYSTEM_DATA_DIRECTORY / "models/digit_recognition.pt"
 
 # Default data paths
-DEFAULT_EXCEL_IMPORT_PATH = SYSTEM_DATA_DIRECTORY / "renew"
-DEFAULT_EXPORT_PATH = "D:/"
+DEFAULT_EXCEL_IMPORT_PATH = SYSTEM_DATA_DIRECTORY / "import"
+DEFAULT_EXPORT_PATH = Path("data/export/")
 
 # =============================================================================
 # DATABASE CONFIGURATION

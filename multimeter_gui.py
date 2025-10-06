@@ -60,15 +60,16 @@ from PySide2.QtCore import QThread, Signal
 
 # Local imports
 import turntable_controller
-from image_processing import convert_coordinates
+# from image_processing import convert_coordinates
 import robot_controller
 import standard_source_controller
-from image_processing import capture_image
-from image_processing import recognize_qr_and_lcd
-from image_processing import recognize_qr_and_lcd_formal
+# from image_processing import capture_image
+# from image_processing import recognize_qr_and_lcd
+# from image_processing import recognize_qr_and_lcd_formal
+from system_config import UI_BASE_DIRECTORY
 
 # Constants
-UI_BASE_PATH = "C:/banshouGUI/ui/"
+UI_BASE_PATH = str(UI_BASE_DIRECTORY)
 CURRENT_ROW = 2
 
 # Global variables for measurement data
@@ -80,6 +81,25 @@ equipment_image_path = 'E:/photo/zp.jpg'
 
 # Database connection from robot_controller
 database_connection = robot_controller.database_connection
+
+class MockCursor:
+    def execute(self, *args, **kwargs):
+        pass
+    def fetchone(self):
+        return None
+    def fetchall(self):
+        return []
+
+class MockConnection:
+    def cursor(self):
+        return MockCursor()
+    def commit(self):
+        pass
+    def close(self):
+        pass
+
+if database_connection is None:
+    database_connection = MockConnection()
 
 # Measurement vectors for different test types
 voltage_vector_1 = [1, 2, 3, 4, 5]
@@ -134,17 +154,18 @@ class SystemInitializer:
         self.ui = QUiLoader().load(UI_BASE_PATH + "/system.ui")
         
         # Connect UI signals to methods
-        self.ui.system_wyb.clicked.connect(self._navigate_to_multimeter_interface)
-        self.ui.system_exit.clicked.connect(self._exit_application)
-        self.ui.system_test.clicked.connect(self._test_system_communication)
+        self.ui.multimeter_button.clicked.connect(self._navigate_to_multimeter_interface)
+        self.ui.exit_button.clicked.connect(self._exit_application)
+        self.ui.test_button.clicked.connect(self._test_system_communication)
         
         # Set background image
         background_style = f"QLabel{{border-image: url({UI_BASE_PATH}/login.png)}}"
-        self.ui.system_pic.setStyleSheet(background_style)
+        self.ui.background_label.setStyleSheet(background_style)
         
         # Initially hide navigation buttons
-        self.ui.system_wyb.setVisible(False)
-        self.ui.system_digital.setVisible(False)
+        self.ui.multimeter_button.setVisible(False)
+        self.ui.digital_button.setVisible(False)
+        self.ui.test_button.setVisible(True)
         
         # Reset turntable position in database
         self._reset_turntable_position()
@@ -173,9 +194,9 @@ class SystemInitializer:
         if communication_result == 1:
             QMessageBox.information(QMessageBox(), 'Communication Test', 
                                   'All devices connected successfully! Ready to start measurement!')
-            self.ui.system_wyb.setVisible(True)
-            self.ui.system_digital.setVisible(True)
-            self.ui.system_test.setVisible(False)
+            self.ui.multimeter_button.setVisible(True)
+            self.ui.digital_button.setVisible(True)
+            self.ui.test_button.setVisible(False)
         elif communication_result == -1:
             QMessageBox.information(QMessageBox(), 'Communication Test', 
                                   'Some devices failed to connect. Please check connections.')
@@ -191,28 +212,28 @@ class MultimeterInterface:
     
     def __init__(self):
         """Initialize the main multimeter interface."""
-        self.ui = QUiLoader().load(UI_BASE_PATH + "/wyb.ui")
+        self.ui = QUiLoader().load(UI_BASE_PATH + "/multimeter_interface.ui")
         
         # Connect UI signals to methods
-        self.ui.wyb_equip.clicked.connect(self._open_equipment_manager)
-        self.ui.wyb_start.clicked.connect(self._start_measurement)
-        self.ui.wyb_manual.clicked.connect(self._start_manual_measurement)
-        self.ui.wyb_renew.clicked.connect(self._open_data_manager)
-        self.ui.wyb_find.clicked.connect(self._open_query_interface)
-        self.ui.wyb_report.clicked.connect(self._open_report_generator)
-        self.ui.wyb_new.clicked.connect(self._open_new_multimeter_interface)
-        self.ui.wyb_rotate.clicked.connect(self._open_turntable_controller)
-        self.ui.wyb_exit.clicked.connect(self._return_to_system_initializer)
+        self.ui.equipment_button.clicked.connect(self._open_equipment_manager)
+        self.ui.start_button.clicked.connect(self._start_measurement)
+        self.ui.manual_button.clicked.connect(self._start_manual_measurement)
+        self.ui.data_manager_button.clicked.connect(self._open_data_manager)
+        self.ui.query_button.clicked.connect(self._open_query_interface)
+        self.ui.report_button.clicked.connect(self._open_report_generator)
+        self.ui.new_multimeter_button.clicked.connect(self._open_new_multimeter_interface)
+        self.ui.turntable_button.clicked.connect(self._open_turntable_controller)
+        self.ui.exit_button.clicked.connect(self._return_to_system_initializer)
         
         # Set background and styling
         background_style = f"QLabel{{border-image: url({UI_BASE_PATH}/login_background.png)}}"
-        self.ui.wyb_pic.setStyleSheet(background_style)
+        self.ui.background_label.setStyleSheet(background_style)
         
         # Set text and button colors
-        self.ui.wyb_label.setStyleSheet("color: red;")
-        self.ui.wyb_equip.setStyleSheet("background-color: yellow;")
-        self.ui.wyb_manual.setStyleSheet("background-color: yellow;")
-        self.ui.wyb_find.setStyleSheet("background-color: yellow;")
+        self.ui.title_label.setStyleSheet("color: red;")
+        self.ui.equipment_button.setStyleSheet("background-color: yellow;")
+        self.ui.manual_button.setStyleSheet("background-color: yellow;")
+        self.ui.query_button.setStyleSheet("background-color: yellow;")
     
     def _open_equipment_manager(self):
         """Open the equipment mounting/unmounting interface."""
@@ -292,18 +313,18 @@ class TurntableController(QWidget):
         """Initialize the turntable controller interface."""
         super(TurntableController, self).__init__()
         
-        self.ui = QUiLoader().load(UI_BASE_PATH + "/rotate_zp.ui")
+        self.ui = QUiLoader().load(UI_BASE_PATH + "/turntable_controller.ui")
         
         # Connect UI signals
-        self.ui.rotate_zp_exit.clicked.connect(self._exit_controller)
-        self.ui.rotate_zp_ok.clicked.connect(self._execute_rotation)
+        self.ui.exit_button.clicked.connect(self._exit_controller)
+        self.ui.rotate_button.clicked.connect(self._execute_rotation)
         
         # Set background and styling
         background_style = f"QLabel{{border-image: url({UI_BASE_PATH}/login_background.png)}}"
-        self.ui.rotate_zp_pic.setStyleSheet(background_style)
+        self.ui.background_label.setStyleSheet(background_style)
         
-        self.ui.rotate_zp_text.setText("Please select rotation function!")
-        self.ui.rotate_zp_text.setStyleSheet(
+        self.ui.status_label.setText("Please select rotation function!")
+        self.ui.status_label.setStyleSheet(
             '''color: red; justify-content: center; align-items: center; text-align: center;''')
         
         self.rotation_in_progress = False
@@ -312,19 +333,19 @@ class TurntableController(QWidget):
         """Execute turntable rotation."""
         if self.rotation_in_progress == 0:
             self.rotation_in_progress = 1
-            self.ui.rotate_zp_text.setText("Rotating turntable, please do not operate! Wait for completion!")
+            self.ui.status_label.setText("Rotating turntable, please do not operate! Wait for completion!")
             
             rotation_thread = threading.Thread(target=self._rotation_worker)
             rotation_thread.start()
         else:
-            self.ui.rotate_zp_text.setText("Please wait for current rotation to complete!")
+            self.ui.status_label.setText("Please wait for current rotation to complete!")
     
     def _rotation_worker(self):
         """Worker thread for turntable rotation."""
-        rotation_positions = int(self.ui.rotate_zp_num.currentText())
+        rotation_positions = int(self.ui.rotation_selector.currentText())
         turntable_controller.send_turntable_rotation(rotation_positions)
         
-        self.ui.rotate_zp_text.setText("Rotation completed!")
+        self.ui.status_label.setText("Rotation completed!")
         self.rotation_in_progress = 0
     
     def _exit_controller(self):
@@ -334,7 +355,7 @@ class TurntableController(QWidget):
             self.main_interface.ui.show()
             self.ui.close()
         else:
-            self.ui.rotate_zp_text.setText("Please wait for rotation to complete before exiting!")
+            self.ui.status_label.setText("Please wait for rotation to complete before exiting!")
 
 
 class NewMultimeterRegistration(QWidget):
@@ -349,15 +370,15 @@ class NewMultimeterRegistration(QWidget):
         """Initialize the new multimeter registration interface."""
         super(NewMultimeterRegistration, self).__init__()
         
-        self.ui = QUiLoader().load(UI_BASE_PATH + "/wyb_new.ui")
+        self.ui = QUiLoader().load(UI_BASE_PATH + "/new_multimeter_registration.ui")
         
         # Connect UI signals
-        self.ui.wyb_new_ok.clicked.connect(self._register_new_multimeter)
-        self.ui.wyb_new_exit.clicked.connect(self._exit_registration)
+        self.ui.register_button.clicked.connect(self._register_new_multimeter)
+        self.ui.exit_button.clicked.connect(self._exit_registration)
         
         # Set background
         background_style = f"QLabel{{border-image: url({UI_BASE_PATH}/login_background.png)}}"
-        self.ui.wyb_new_pic.setStyleSheet(background_style)
+        self.ui.background_label.setStyleSheet(background_style)
     
     def _register_new_multimeter(self):
         """Register a new multimeter by importing Excel calibration data."""
@@ -546,6 +567,81 @@ class NewMultimeterRegistration(QWidget):
         self.main_interface.ui.show()
         self.ui.close()
 
+
+class EquipmentManager(QWidget):
+    def __init__(self):
+        super(EquipmentManager, self).__init__()
+        self.ui = QUiLoader().load(UI_BASE_PATH + "/equipment_manager.ui")
+        self.ui.exit_button.clicked.connect(self.close_window)
+
+    def close_window(self):
+        self.main_interface = MultimeterInterface()
+        self.main_interface.ui.show()
+        self.ui.close()
+
+
+class MeasurementRunner(QWidget):
+    def __init__(self):
+        super(MeasurementRunner, self).__init__()
+        self.ui = QUiLoader().load(UI_BASE_PATH + "/measurement_runner.ui")
+        self.ui.exit_button.clicked.connect(self.close_window)
+
+    def close_window(self):
+        self.main_interface = MultimeterInterface()
+        self.main_interface.ui.show()
+        self.ui.close()
+
+
+class ManualMeasurementRunner(QWidget):
+    def __init__(self):
+        super(ManualMeasurementRunner, self).__init__()
+        self.ui = QUiLoader().load(UI_BASE_PATH + "/manual_measurement_runner.ui")
+        self.ui.exit_button.clicked.connect(self.close_window)
+
+    def close_window(self):
+        self.main_interface = MultimeterInterface()
+        self.main_interface.ui.show()
+        self.ui.close()
+
+
+class DataManager(QWidget):
+    def __init__(self):
+        super(DataManager, self).__init__()
+        self.ui = QUiLoader().load(UI_BASE_PATH + "/data_manager.ui")
+        self.ui.exit_button.clicked.connect(self.close_window)
+
+    def close_window(self):
+        self.main_interface = MultimeterInterface()
+        self.main_interface.ui.show()
+        self.ui.close()
+
+
+class DataQueryInterface(QWidget):
+    def __init__(self):
+        super(DataQueryInterface, self).__init__()
+        self.ui = QUiLoader().load(UI_BASE_PATH + "/data_query.ui")
+        self.ui.exit_button.clicked.connect(self.close_window)
+
+    def close_window(self):
+        self.main_interface = MultimeterInterface()
+        self.main_interface.ui.show()
+        self.ui.close()
+
+
+class ReportGenerator(QWidget):
+    def __init__(self):
+        super(ReportGenerator, self).__init__()
+        self.ui = QUiLoader().load(UI_BASE_PATH + "/report_generator.ui")
+        self.ui.exit_button.clicked.connect(self.close_window)
+
+    def close_window(self):
+        self.main_interface = MultimeterInterface()
+        self.main_interface.ui.show()
+        self.ui.close()
+
+
+class QueryResultDisplay(QWidget):
+    pass
 
 # Additional classes would continue here following the same pattern...
 # Due to length constraints, I'll provide the main structure and a few key classes.

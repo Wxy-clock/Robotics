@@ -44,6 +44,20 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="DOCUMENTATION_CONSOLIDATION.md" />
+    <Content Include="NAMING_CONVENTION.md" />
+    <Content Include="ui\data_manager.ui" />
+    <Content Include="ui\data_query.ui" />
+    <Content Include="ui\equipment_manager.ui" />
+    <Content Include="ui\manual_measurement_runner.ui" />
+    <Content Include="ui\measurement_runner.ui" />
+    <Content Include="ui\multimeter_interface.ui" />
+    <Content Include="ui\new_multimeter_registration.ui" />
+    <Content Include="ui\report_generator.ui" />
+    <Content Include="ui\system.ui" />
+    <Content Include="ui\turntable_controller.ui" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="ui\" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
 </Project>

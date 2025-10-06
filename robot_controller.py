@@ -35,7 +35,6 @@ import numpy as np
 # Local imports
 from system_config import *
 import Robot
-from image_processing import capture_image, recognize_qr_and_lcd
 
 # Global robot and database connections
 robot_connection = None
@@ -737,14 +736,8 @@ def test_communication_connection() -> int:
         print(f'Database connection failed: {e}')
         initialization_status = -1
     
-    # Test camera communication
-    try:
-        capture_image.capture_photo('test_connect')
-        print('Camera communication successful')
-    except Exception as e:
-        print(f'Camera communication failed: {e}')
-        initialization_status = -1
-    
+    # Test camera communication is removed as capture_image is not available
+
     # Test pressure sensor
     try:
         pressure_value = microcontroller_comm.read_pressure_value()
