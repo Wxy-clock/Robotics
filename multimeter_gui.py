@@ -159,7 +159,7 @@ class SystemInitializer:
         self.ui.test_button.clicked.connect(self._test_system_communication)
         
         # Set background image
-        background_style = f"QLabel{{border-image: url({UI_BASE_PATH}/login.png)}}"
+        background_style = f"QLabel{{border-image: url({UI_BASE_PATH}/µÇÂ¼µ×°å.png)}}"
         self.ui.background_label.setStyleSheet(background_style)
         
         # Initially hide navigation buttons
@@ -226,7 +226,7 @@ class MultimeterInterface:
         self.ui.exit_button.clicked.connect(self._return_to_system_initializer)
         
         # Set background and styling
-        background_style = f"QLabel{{border-image: url({UI_BASE_PATH}/login_background.png)}}"
+        background_style = f"QLabel{{border-image: url({UI_BASE_PATH}/µÇÂ¼µ×°å.png)}}"
         self.ui.background_label.setStyleSheet(background_style)
         
         # Set text and button colors
@@ -320,9 +320,9 @@ class TurntableController(QWidget):
         self.ui.rotate_button.clicked.connect(self._execute_rotation)
         
         # Set background and styling
-        background_style = f"QLabel{{border-image: url({UI_BASE_PATH}/login_background.png)}}"
-        self.ui.background_label.setStyleSheet(background_style)
-        
+        background_style = f"QLabel{{border-image: url({UI_BASE_PATH}/µÇÂ¼µ×°å.png)}}"
+        background_style = f"QLabel{{border-image: url({UI_BASE_PATH}/µÇÂ¼µ×°å.png)}}"
+        self.ui.rotate_zp_pic.setStyleSheet(background_style)
         self.ui.status_label.setText("Please select rotation function!")
         self.ui.status_label.setStyleSheet(
             '''color: red; justify-content: center; align-items: center; text-align: center;''')
@@ -342,7 +342,7 @@ class TurntableController(QWidget):
     
     def _rotation_worker(self):
         """Worker thread for turntable rotation."""
-        rotation_positions = int(self.ui.rotation_selector.currentText())
+        rotation_positions = int(self.ui.rotate_zp_num.currentText())
         turntable_controller.send_turntable_rotation(rotation_positions)
         
         self.ui.status_label.setText("Rotation completed!")
@@ -377,7 +377,7 @@ class NewMultimeterRegistration(QWidget):
         self.ui.exit_button.clicked.connect(self._exit_registration)
         
         # Set background
-        background_style = f"QLabel{{border-image: url({UI_BASE_PATH}/login_background.png)}}"
+        background_style = f"QLabel{{border-image: url({UI_BASE_PATH}/µÇÂ¼µ×°å.png)}}"
         self.ui.background_label.setStyleSheet(background_style)
     
     def _register_new_multimeter(self):
