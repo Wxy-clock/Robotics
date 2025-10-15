@@ -34,6 +34,10 @@ from PIL import Image
 import imutils
 from pyzbar import pyzbar
 
+# Get the directory of the current script to use as a base for relative paths
+# This makes the script portable.
+SCRIPT_DIR = Path(__file__).resolve().parent
+
 # PyTorch model imports - Fixed to use ultralytics instead of missing YOLOv5 modules
 try:
     from ultralytics import YOLO
@@ -48,8 +52,9 @@ except ImportError:
         return 'cpu'
 
 # Constants
-BLACK_IMAGE_PATH = "C:/banshouGUI/pic_linshi/black_image.png"
-RECOGNITION_RESULT_PATH = "C:/banshouGUI/pic_linshi/shibie.png"
+# Use relative paths for resources
+BLACK_IMAGE_PATH = SCRIPT_DIR / "data" / "temp" / "black_image.png"
+RECOGNITION_RESULT_PATH = SCRIPT_DIR / "data" / "temp" / "shibie.png"
 SCREEN_MODE = 1
 
 # Global variables for digit recognition results
@@ -323,7 +328,8 @@ def recognize_digits_neural_network(image_path, rotation_angle=-9, processing_mo
     
     try:
         # Load pre-trained model using ultralytics
-        weights_path = 'D:/new_wyb_sys/do_image/num_best_L.pt'
+        # Use a relative path for the model file
+        weights_path = SCRIPT_DIR / 'models' / 'num_best_L.pt'
         
         # Check if model file exists
         if not os.path.exists(weights_path):
@@ -442,6 +448,9 @@ def _prepare_image_for_inference(image, target_width, target_height):
     # Get image dimensions
     height, width = image.shape[:2]
     
+    # Ensure the directory for the temporary black image exists
+    BLACK_IMAGE_PATH.parent.mkdir(parents=True, exist_ok=True)
+
     # Resize image maintaining aspect ratio
     if width >= height:
         new_height = int(target_height * image.shape[0] / image.shape[1])
@@ -450,8 +459,8 @@ def _prepare_image_for_inference(image, target_width, target_height):
         # Create padding
         padding_height = target_height - new_height
         black_padding = np.zeros((padding_height, target_width, 3), np.uint8)
-        cv2.imwrite(BLACK_IMAGE_PATH, black_padding)
-        padding_image = cv2.imread(BLACK_IMAGE_PATH)
+        cv2.imwrite(str(BLACK_IMAGE_PATH), black_padding)
+        padding_image = cv2.imread(str(BLACK_IMAGE_PATH))
         
         # Concatenate vertically
         final_image = cv2.vconcat([resized_image, padding_image])
@@ -462,8 +471,8 @@ def _prepare_image_for_inference(image, target_width, target_height):
         # Create padding
         padding_width = target_width - new_width
         black_padding = np.zeros((target_height, padding_width, 3), np.uint8)
-        cv2.imwrite(BLACK_IMAGE_PATH, black_padding)
-        padding_image = cv2.imread(BLACK_IMAGE_PATH)
+        cv2.imwrite(str(BLACK_IMAGE_PATH), black_padding)
+        padding_image = cv2.imread(str(BLACK_IMAGE_PATH))
         
         # Concatenate horizontally
         final_image = cv2.hconcat([resized_image, padding_image])
@@ -524,9 +533,12 @@ def process_recognition_results(image_paths):
     original_results.clear()
     processed_results.clear()
     
+    # Define the base path for test images using a relative path
+    test_images_base_path = SCRIPT_DIR / "test_images"
+
     for path in image_paths:
-        image_file_path = f"C:/Users/16667/Desktop/photo_problem/{path}.jpg"
-        result = recognize_digits_neural_network(image_file_path)
+        image_file_path = test_images_base_path / f"{path}.jpg"
+        result = recognize_digits_neural_network(str(image_file_path))
         
         original_results.append(result)
         

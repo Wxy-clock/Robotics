@@ -11,7 +11,7 @@
     <OutputPath>.</OutputPath>
     <ProjectTypeGuids>{888888a0-9f3d-457c-b088-3a5042f75d52}</ProjectTypeGuids>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <InterpreterId>Global|VisualStudio|robot</InterpreterId>
+    <InterpreterId>CondaEnv|CondaEnv|robot</InterpreterId>
     <TestFramework>Pytest</TestFramework>
     <SuppressEnvironmentCreationPrompt>True</SuppressEnvironmentCreationPrompt>
     <IsWindowsApplication>False</IsWindowsApplication>
@@ -22,42 +22,23 @@
   <PropertyGroup>
     <VisualStudioVersion Condition=" '$(VisualStudioVersion)' == '' ">10.0</VisualStudioVersion>
   </PropertyGroup>
+  <!-- Include all Python source files recursively, excluding common environment/cache folders -->
   <ItemGroup>
-    <Compile Include="CameraParams_const.py" />
-    <Compile Include="CameraParams_header.py" />
-    <Compile Include="convert_new.py" />
-    <Compile Include="export.py" />
-    <Compile Include="image_processing.py" />
-    <Compile Include="multimeter_gui.py" />
-    <Compile Include="MvCameraControl_class.py" />
-    <Compile Include="MvErrorDefine_const.py" />
-    <Compile Include="PixelType_header.py" />
-    <Compile Include="robot_controller.py" />
-    <Compile Include="system_config.py" />
-    <Compile Include="testGrabImage.py" />
-    <Compile Include="turntable_controller.py" />
+    <Compile Include="**\*.py" Exclude="**\__pycache__\**;**\.git\**;**\.vs\**;**\env\**;**\venv\**;**\.venv\**;**\build\**;**\dist\**;**\.mypy_cache\**;**\.pytest_cache\**;**\.ipynb_checkpoints\**" />
+  </ItemGroup>
+  <!-- Include all other files as Content for easier tracking (docs, UI, configs, etc.) -->
+  <ItemGroup>
+    <Content Include="**\*.*" Exclude="**\*.py;**\__pycache__\**;**\.git\**;**\.vs\**;**\env\**;**\venv\**;**\.venv\**;**\build\**;**\dist\**;**\.mypy_cache\**;**\.pytest_cache\**;**\.ipynb_checkpoints\**;**\*.pyc;**\*.pyo;**\*.pyd;**\*.pyproj;**\*.user;**\*.sln" />
   </ItemGroup>
   <ItemGroup>
-    <InterpreterReference Include="CondaEnv|CondaEnv|production_env" />
     <InterpreterReference Include="CondaEnv|CondaEnv|robot" />
     <InterpreterReference Include="Global|VisualStudio|robot" />
   </ItemGroup>
+  <!-- Keep explicit folder so it shows in VS Solution Explorer even if empty -->
   <ItemGroup>
-    <Content Include="development_phase_report.txt" />
-    <Content Include="DOCUMENTATION_CONSOLIDATION.md" />
-    <Content Include="NAMING_CONVENTION.md" />
-    <Content Include="ui\data_manager.ui" />
-    <Content Include="ui\data_query.ui" />
-    <Content Include="ui\equipment_manager.ui" />
-    <Content Include="ui\manual_measurement_runner.ui" />
-    <Content Include="ui\measurement_runner.ui" />
-    <Content Include="ui\multimeter_interface.ui" />
-    <Content Include="ui\new_multimeter_registration.ui" />
-    <Content Include="ui\report_generator.ui" />
-    <Content Include="ui\system.ui" />
-    <Content Include="ui\turntable_controller.ui" />
-  </ItemGroup>
-  <ItemGroup>
+    <Folder Include="fairino_related\" />
+    <Folder Include="fairino_related\example\" />
+    <Folder Include="fairino_related\fairino\" />
     <Folder Include="ui\" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />

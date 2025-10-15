@@ -72,6 +72,15 @@ from system_config import UI_BASE_DIRECTORY
 UI_BASE_PATH = str(UI_BASE_DIRECTORY)
 CURRENT_ROW = 2
 
+# Use ASCII-only unicode escape for the background filename to avoid encoding issues in source
+LOGIN_BG_FILENAME = '\u767b\u5f55\u5e95\u677f.png'  # µÇÂ¼µ×°å.png
+
+
+def qlabel_bg_style(filename: str) -> str:
+    """Build a QSS stylesheet string for QLabel background using a safe ASCII path."""
+    path = os.path.join(UI_BASE_PATH, filename).replace('\\', '/')
+    return "QLabel{border-image: url(" + path + ")}"  # avoid f-string brace escaping
+
 # Global variables for measurement data
 measurement_vector = []
 multimeter_models = ['FlUKE1', 'VICTORY1', 'KLET1', 'PLAY1', 'NEW1', 'TREATR1', 'ZHUYI1']
@@ -159,8 +168,7 @@ class SystemInitializer:
         self.ui.test_button.clicked.connect(self._test_system_communication)
         
         # Set background image
-        background_style = f"QLabel{{border-image: url({UI_BASE_PATH}/µÇÂ¼µ×°å.png)}}"
-        self.ui.background_label.setStyleSheet(background_style)
+        self.ui.background_label.setStyleSheet(qlabel_bg_style('base.png'))
         
         # Initially hide navigation buttons
         self.ui.multimeter_button.setVisible(False)
@@ -226,7 +234,7 @@ class MultimeterInterface:
         self.ui.exit_button.clicked.connect(self._return_to_system_initializer)
         
         # Set background and styling
-        background_style = f"QLabel{{border-image: url({UI_BASE_PATH}/µÇÂ¼µ×°å.png)}}"
+        background_style = qlabel_bg_style(LOGIN_BG_FILENAME)
         self.ui.background_label.setStyleSheet(background_style)
         
         # Set text and button colors
@@ -320,8 +328,7 @@ class TurntableController(QWidget):
         self.ui.rotate_button.clicked.connect(self._execute_rotation)
         
         # Set background and styling
-        background_style = f"QLabel{{border-image: url({UI_BASE_PATH}/µÇÂ¼µ×°å.png)}}"
-        background_style = f"QLabel{{border-image: url({UI_BASE_PATH}/µÇÂ¼µ×°å.png)}}"
+        background_style = qlabel_bg_style(LOGIN_BG_FILENAME)
         self.ui.rotate_zp_pic.setStyleSheet(background_style)
         self.ui.status_label.setText("Please select rotation function!")
         self.ui.status_label.setStyleSheet(
@@ -336,6 +343,7 @@ class TurntableController(QWidget):
             self.ui.status_label.setText("Rotating turntable, please do not operate! Wait for completion!")
             
             rotation_thread = threading.Thread(target=self._rotation_worker)
+            rotation_thread.daemon = True
             rotation_thread.start()
         else:
             self.ui.status_label.setText("Please wait for current rotation to complete!")
@@ -377,7 +385,7 @@ class NewMultimeterRegistration(QWidget):
         self.ui.exit_button.clicked.connect(self._exit_registration)
         
         # Set background
-        background_style = f"QLabel{{border-image: url({UI_BASE_PATH}/µÇÂ¼µ×°å.png)}}"
+        background_style = qlabel_bg_style(LOGIN_BG_FILENAME)
         self.ui.background_label.setStyleSheet(background_style)
     
     def _register_new_multimeter(self):
