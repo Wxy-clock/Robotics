@@ -23,6 +23,7 @@ import traceback
 from datetime import datetime
 
 try:
+    # Use robot IP only; database and GUI PNG dependencies removed
     from system_config import ROBOT_IP_ADDRESS
 except Exception:
     ROBOT_IP_ADDRESS = os.environ.get("ROBOT_IP_ADDRESS", "192.168.58.2")
@@ -104,19 +105,6 @@ def sdk_realtime_test(ip: str, hold_seconds: float = 3.0) -> bool:
         rpc = Robot.RPC(ip)
         # Give realtime thread a moment to start
         time.sleep(0.5)
-        # Check internal socket state where available (diagnostic only)
-        try:
-            sock_obj = getattr(rpc, 'sock_cli_state', None)
-            sock_state_flag = getattr(rpc, 'sock_cli_state_state', None)
-            print(f"[SDK] sock_cli_state is {'set' if sock_obj else 'None'}; state_flag={sock_state_flag}")
-            if sock_obj:
-                try:
-                    print(f"[SDK] sock fileno: {sock_obj.fileno()}")
-                except Exception as e:
-                    print(f"[SDK] fileno(): {e}")
-        except Exception as e:
-            print(f"[SDK] Socket state inspect error: {e}")
-
         # Try reading a few realtime values while the thread runs
         t_end = time.time() + hold_seconds
         ok_reads = 0

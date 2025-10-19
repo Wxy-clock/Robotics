@@ -25,12 +25,15 @@
   <!-- Include all Python source files recursively, excluding common environment/cache folders -->
   <ItemGroup>
     <Compile Include="**\*.py" Exclude="**\__pycache__\**;**\.git\**;**\.vs\**;**\env\**;**\venv\**;**\.venv\**;**\build\**;**\dist\**;**\.mypy_cache\**;**\.pytest_cache\**;**\.ipynb_checkpoints\**" />
+    <Compile Include="movement_command_parser.py" />
+    <Compile Include="movement_test.py" />
     <Compile Include="proxy-connection.py" />
     <Compile Include="socket_diagnostics.py" />
   </ItemGroup>
   <!-- Include all other files as Content for easier tracking (docs, UI, configs, etc.) -->
   <ItemGroup>
     <Content Include="**\*.*" Exclude="**\*.py;**\__pycache__\**;**\.git\**;**\.vs\**;**\env\**;**\venv\**;**\.venv\**;**\build\**;**\dist\**;**\.mypy_cache\**;**\.pytest_cache\**;**\.ipynb_checkpoints\**;**\*.pyc;**\*.pyo;**\*.pyd;**\*.pyproj;**\*.user;**\*.sln" />
+    <Content Include="test.txt" />
   </ItemGroup>
   <ItemGroup>
     <InterpreterReference Include="CondaEnv|CondaEnv|robot" />

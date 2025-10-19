@@ -18,10 +18,9 @@ import time
 import serial
 from typing import Optional
 
-# Turntable communication constants
-SERIAL_PORT = 'COM7'  # Serial port number
-UART_BAUDRATE = 9600  # Baud rate
-ROTATION_COMMAND = [0x01, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFE, 0xEF]
+# Use system-wide serial config and command definition
+from system_config import SERIAL_PORT, SERIAL_BAUDRATE
+from system_config import CMD_TURNTABLE_ROTATE
 
 
 def send_turntable_rotation(rotation_steps: int) -> Optional[int]:
@@ -37,12 +36,10 @@ def send_turntable_rotation(rotation_steps: int) -> Optional[int]:
     Raises:
         serial.SerialException: If serial communication fails
     """
-    global ROTATION_COMMAND
-    
     try:
         # Initialize serial connection
         serial_connection = serial.Serial()
-        serial_connection.baudrate = UART_BAUDRATE
+        serial_connection.baudrate = SERIAL_BAUDRATE
         serial_connection.bytesize = 8
         serial_connection.parity = 'N'
         serial_connection.stopbits = 1
@@ -54,14 +51,15 @@ def send_turntable_rotation(rotation_steps: int) -> Optional[int]:
         serial_connection.flushInput()
         serial_connection.flushOutput()
         
-        # Set rotation value in command
-        ROTATION_COMMAND[6] = rotation_steps
+        # Prepare command based on central definition
+        command = CMD_TURNTABLE_ROTATE.copy()
+        command[6] = rotation_steps
         
         # Send command
-        serial_connection.write(bytearray(ROTATION_COMMAND))
+        serial_connection.write(bytearray(command))
         
         # Wait for response
-        response = serial_connection.readline()
+        _ = serial_connection.readline()
         
         # Close connection
         serial_connection.close()
