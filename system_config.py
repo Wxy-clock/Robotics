@@ -106,6 +106,33 @@ POSITION_OFFSET_X = -5
 POSITION_OFFSET_Y = 12.7
 
 # =============================================================================
+# NETWORK/PROXY CONFIGURATION
+# =============================================================================
+
+# Centralized proxy configuration (set here instead of OS environment)
+# Enable to route robot communication through a local/remote proxy endpoint
+ROBOT_PROXY_ENABLED = True
+# Proxy host/IP when proxy is enabled
+ROBOT_PROXY_ENDPOINT = "127.0.0.1"
+# Optional host/IP override for direct mode when proxy is disabled; set to None to use ROBOT_IP_ADDRESS
+ROBOT_ENDPOINT_OVERRIDE = None
+
+
+def is_proxy_enabled() -> bool:
+    """Return True if proxy mode is enabled via configuration."""
+    return bool(ROBOT_PROXY_ENABLED)
+
+
+def get_proxy_endpoint() -> str:
+    """Return the configured proxy endpoint host/IP."""
+    return str(ROBOT_PROXY_ENDPOINT)
+
+
+def get_robot_endpoint_override():
+    """Return optional direct-mode endpoint override (or None)."""
+    return ROBOT_ENDPOINT_OVERRIDE
+
+# =============================================================================
 # MEASUREMENT CONFIGURATION
 # =============================================================================
 

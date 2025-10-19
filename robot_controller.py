@@ -28,6 +28,7 @@ import serial
 import pymysql
 from datetime import datetime
 from typing import List, Tuple, Optional, Union
+import os
 
 # Third-party imports
 import numpy as np
@@ -35,6 +36,7 @@ import numpy as np
 # Local imports
 from system_config import *
 import Robot
+from proxy_connection import resolve_robot_host, is_proxy_enabled, get_proxy_endpoint
 
 # Global robot and database connections
 robot_connection = None
@@ -93,9 +95,14 @@ class RobotController:
     def _initialize_robot_connection(self):
         """Initialize connection to robot controller."""
         try:
-            self.robot = Robot.RPC(ROBOT_IP_ADDRESS)
+            host = resolve_robot_host(ROBOT_IP_ADDRESS)
+            if is_proxy_enabled():
+                print(f"[RobotController] Proxy Enabled = YES, Proxy Endpoint = {get_proxy_endpoint()}")
+            else:
+                print("[RobotController] Proxy Enabled = NO")
+            self.robot = Robot.RPC(host)
             self.is_connected = True
-            print("Robot connection established successfully")
+            print(f"Robot connection established successfully to {host}")
         except Exception as e:
             print(f"Failed to connect to robot: {e}")
             self.is_connected = False
@@ -712,9 +719,14 @@ def test_communication_connection() -> int:
     
     # Test robot communication
     try:
-        robot_connection = Robot.RPC(ROBOT_IP_ADDRESS)
+        host = resolve_robot_host(ROBOT_IP_ADDRESS)
+        if is_proxy_enabled():
+            print(f"[CommTest] Proxy Enabled = YES, Proxy Endpoint = {get_proxy_endpoint()}")
+        else:
+            print("[CommTest] Proxy Enabled = NO")
+        robot_connection = Robot.RPC(host)
         robot_connection.GetActualTCPPose(1)[1]
-        print('Robot communication successful')
+        print(f'Robot communication successful via {host}')
     except Exception as e:
         print(f'Robot communication failed: {e}')
         initialization_status = -1
@@ -769,7 +781,12 @@ def initialize_system():
     global robot_connection, database_connection
     
     try:
-        robot_connection = Robot.RPC(ROBOT_IP_ADDRESS)
+        host = resolve_robot_host(ROBOT_IP_ADDRESS)
+        if is_proxy_enabled():
+            print(f"[Init] Proxy Enabled = YES, Proxy Endpoint = {get_proxy_endpoint()}")
+        else:
+            print("[Init] Proxy Enabled = NO")
+        robot_connection = Robot.RPC(host)
         database_connection = pymysql.connect(
             host=DATABASE_HOST,
             port=DATABASE_PORT,
@@ -777,10 +794,11 @@ def initialize_system():
             password=DATABASE_PASSWORD,
             database=DATABASE_NAME
         )
-        print("System initialization completed")
+        print(f"System initialization completed (robot={host})")
     except Exception as e:
         print(f"System initialization failed: {e}")
 
 
-# Initialize on module import
-initialize_system()
+# Initialize on module import unless explicitly skipped (testing/diagnostics)
+if os.environ.get('ROBOT_SKIP_AUTO_INIT', '0') != '1':
+    initialize_system()

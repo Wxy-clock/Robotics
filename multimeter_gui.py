@@ -47,18 +47,29 @@ from openpyxl import Workbook
 from openpyxl.utils import get_column_letter
 import pandas as pd
 
-# PySide2 GUI imports
-from PySide2.QtWidgets import (QApplication, QTableWidget, QTableWidgetItem, 
-                               QInputDialog, QMainWindow, QMessageBox, 
-                               QGraphicsScene, QFileDialog, QPushButton, 
-                               QLineEdit, QLabel, QPlainTextEdit, QDialog,
-                               QWidget, QVBoxLayout)
-from PySide2.QtUiTools import QUiLoader
-from PySide2.QtGui import QPalette, QPixmap, QIcon
-from PySide2 import QtCore
-from PySide2.QtCore import QThread, Signal
+# PySide2 GUI imports (lazy optional when GUI disabled)
+GUI_DISABLED = os.environ.get('DISABLE_GUI', '1') == '1'
+if not GUI_DISABLED:
+    from PySide2.QtWidgets import (QApplication, QTableWidget, QTableWidgetItem, 
+                                   QInputDialog, QMainWindow, QMessageBox, 
+                                   QGraphicsScene, QFileDialog, QPushButton, 
+                                   QLineEdit, QLabel, QPlainTextEdit, QDialog,
+                                   QWidget, QVBoxLayout)
+    from PySide2.QtUiTools import QUiLoader
+    from PySide2.QtGui import QPalette, QPixmap, QIcon
+    from PySide2 import QtCore
+    from PySide2.QtCore import QThread, Signal
+else:
+    # Provide minimal dummies to satisfy type usage if any code paths are reached without GUI
+    QApplication = object
+    QMessageBox = type('Msg', (), {'information': staticmethod(lambda *a, **k: None)})
+    QUiLoader = type('Loader', (), {'load': staticmethod(lambda *a, **k: None)})
+    QWidget = object
+    QtCore = type('QtCore', (), {'QCoreApplication': type('QCoreApplication', (), {'setAttribute': staticmethod(lambda *a, **k: None)}),
+                                 'Qt': type('Qt', (), {'AA_EnableHighDpiScaling': 0})})
 
 # Local imports
+os.environ.setdefault('ROBOT_SKIP_AUTO_INIT', '1')  # avoid sockets during test by default
 import turntable_controller
 # from image_processing import convert_coordinates
 import robot_controller
@@ -160,20 +171,21 @@ class SystemInitializer:
     
     def __init__(self):
         """Initialize the system interface and set up UI components."""
-        self.ui = QUiLoader().load(UI_BASE_PATH + "/system.ui")
+        self.ui = QUiLoader().load(UI_BASE_PATH + "/system.ui") if not GUI_DISABLED else None
         
-        # Connect UI signals to methods
-        self.ui.multimeter_button.clicked.connect(self._navigate_to_multimeter_interface)
-        self.ui.exit_button.clicked.connect(self._exit_application)
-        self.ui.test_button.clicked.connect(self._test_system_communication)
-        
-        # Set background image
-        self.ui.background_label.setStyleSheet(qlabel_bg_style('base.png'))
-        
-        # Initially hide navigation buttons
-        self.ui.multimeter_button.setVisible(False)
-        self.ui.digital_button.setVisible(False)
-        self.ui.test_button.setVisible(True)
+        if not GUI_DISABLED:
+            # Connect UI signals to methods
+            self.ui.multimeter_button.clicked.connect(self._navigate_to_multimeter_interface)
+            self.ui.exit_button.clicked.connect(self._exit_application)
+            self.ui.test_button.clicked.connect(self._test_system_communication)
+            
+            # Set background image
+            self.ui.background_label.setStyleSheet(qlabel_bg_style('base.png'))
+            
+            # Initially hide navigation buttons
+            self.ui.multimeter_button.setVisible(False)
+            self.ui.digital_button.setVisible(False)
+            self.ui.test_button.setVisible(True)
         
         # Reset turntable position in database
         self._reset_turntable_position()
@@ -188,26 +200,29 @@ class SystemInitializer:
     def _navigate_to_multimeter_interface(self):
         """Navigate to the main multimeter testing interface."""
         self.main_interface = MultimeterInterface()
-        self.main_interface.ui.show()
-        self.ui.close()
+        if not GUI_DISABLED:
+            self.main_interface.ui.show()
+            self.ui.close()
     
     def _exit_application(self):
         """Exit the application."""
-        self.ui.close()
+        if not GUI_DISABLED:
+            self.ui.close()
     
     def _test_system_communication(self):
         """Test communication with all system components."""
         communication_result = robot_controller.test_communication_connection()
         
-        if communication_result == 1:
-            QMessageBox.information(QMessageBox(), 'Communication Test', 
-                                  'All devices connected successfully! Ready to start measurement!')
-            self.ui.multimeter_button.setVisible(True)
-            self.ui.digital_button.setVisible(True)
-            self.ui.test_button.setVisible(False)
-        elif communication_result == -1:
-            QMessageBox.information(QMessageBox(), 'Communication Test', 
-                                  'Some devices failed to connect. Please check connections.')
+        if not GUI_DISABLED:
+            if communication_result == 1:
+                QMessageBox.information(QMessageBox(), 'Communication Test', 
+                                      'All devices connected successfully! Ready to start measurement!')
+                self.ui.multimeter_button.setVisible(True)
+                self.ui.digital_button.setVisible(True)
+                self.ui.test_button.setVisible(False)
+            elif communication_result == -1:
+                QMessageBox.information(QMessageBox(), 'Communication Test', 
+                                      'Some devices failed to connect. Please check connections.')
 
 
 class MultimeterInterface:
@@ -220,40 +235,43 @@ class MultimeterInterface:
     
     def __init__(self):
         """Initialize the main multimeter interface."""
-        self.ui = QUiLoader().load(UI_BASE_PATH + "/multimeter_interface.ui")
+        self.ui = QUiLoader().load(UI_BASE_PATH + "/multimeter_interface.ui") if not GUI_DISABLED else None
         
-        # Connect UI signals to methods
-        self.ui.equipment_button.clicked.connect(self._open_equipment_manager)
-        self.ui.start_button.clicked.connect(self._start_measurement)
-        self.ui.manual_button.clicked.connect(self._start_manual_measurement)
-        self.ui.data_manager_button.clicked.connect(self._open_data_manager)
-        self.ui.query_button.clicked.connect(self._open_query_interface)
-        self.ui.report_button.clicked.connect(self._open_report_generator)
-        self.ui.new_multimeter_button.clicked.connect(self._open_new_multimeter_interface)
-        self.ui.turntable_button.clicked.connect(self._open_turntable_controller)
-        self.ui.exit_button.clicked.connect(self._return_to_system_initializer)
-        
-        # Set background and styling
-        background_style = qlabel_bg_style(LOGIN_BG_FILENAME)
-        self.ui.background_label.setStyleSheet(background_style)
-        
-        # Set text and button colors
-        self.ui.title_label.setStyleSheet("color: red;")
-        self.ui.equipment_button.setStyleSheet("background-color: yellow;")
-        self.ui.manual_button.setStyleSheet("background-color: yellow;")
-        self.ui.query_button.setStyleSheet("background-color: yellow;")
+        if not GUI_DISABLED:
+            # Connect UI signals to methods
+            self.ui.equipment_button.clicked.connect(self._open_equipment_manager)
+            self.ui.start_button.clicked.connect(self._start_measurement)
+            self.ui.manual_button.clicked.connect(self._start_manual_measurement)
+            self.ui.data_manager_button.clicked.connect(self._open_data_manager)
+            self.ui.query_button.clicked.connect(self._open_query_interface)
+            self.ui.report_button.clicked.connect(self._open_report_generator)
+            self.ui.new_multimeter_button.clicked.connect(self._open_new_multimeter_interface)
+            self.ui.turntable_button.clicked.connect(self._open_turntable_controller)
+            self.ui.exit_button.clicked.connect(self._return_to_system_initializer)
+            
+            # Set background and styling
+            background_style = qlabel_bg_style(LOGIN_BG_FILENAME)
+            self.ui.background_label.setStyleSheet(background_style)
+            
+            # Set text and button colors
+            self.ui.title_label.setStyleSheet("color: red;")
+            self.ui.equipment_button.setStyleSheet("background-color: yellow;")
+            self.ui.manual_button.setStyleSheet("background-color: yellow;")
+            self.ui.query_button.setStyleSheet("background-color: yellow;")
     
     def _open_equipment_manager(self):
         """Open the equipment mounting/unmounting interface."""
         self.equipment_manager = EquipmentManager()
-        self.equipment_manager.ui.show()
-        self.ui.close()
+        if not GUI_DISABLED:
+            self.equipment_manager.ui.show()
+            self.ui.close()
     
     def _start_measurement(self):
         """Start automatic measurement process."""
         self.measurement_runner = MeasurementRunner()
-        self.measurement_runner.ui.show()
-        self.ui.close()
+        if not GUI_DISABLED:
+            self.measurement_runner.ui.show()
+            self.ui.close()
     
     def _start_manual_measurement(self):
         """Start manual measurement process."""
@@ -264,49 +282,57 @@ class MultimeterInterface:
         result = cursor.fetchone()
         
         if result is None:
-            QMessageBox.information(self.ui, 'Measurement', 
-                                  'No equipment mounted. Please mount equipment before measurement.')
+            if not GUI_DISABLED:
+                QMessageBox.information(self.ui, 'Measurement', 
+                                      'No equipment mounted. Please mount equipment before measurement.')
             return
         else:
             self.manual_runner = ManualMeasurementRunner()
-            self.manual_runner.ui.show()
-            self.ui.close()
+            if not GUI_DISABLED:
+                self.manual_runner.ui.show()
+                self.ui.close()
     
     def _open_data_manager(self):
         """Open data management interface."""
         self.data_manager = DataManager()
-        self.data_manager.ui.show()
-        self.ui.close()
+        if not GUI_DISABLED:
+            self.data_manager.ui.show()
+            self.ui.close()
     
     def _open_query_interface(self):
         """Open data query interface."""
         self.query_interface = DataQueryInterface()
-        self.query_interface.ui.show()
-        self.ui.close()
+        if not GUI_DISABLED:
+            self.query_interface.ui.show()
+            self.ui.close()
     
     def _open_report_generator(self):
         """Open report generation interface."""
         self.report_generator = ReportGenerator()
-        self.report_generator.ui.show()
-        self.ui.close()
+        if not GUI_DISABLED:
+            self.report_generator.ui.show()
+            self.ui.close()
     
     def _open_new_multimeter_interface(self):
         """Open new multimeter registration interface."""
         self.new_multimeter = NewMultimeterRegistration()
-        self.new_multimeter.ui.show()
-        self.ui.close()
+        if not GUI_DISABLED:
+            self.new_multimeter.ui.show()
+            self.ui.close()
     
     def _open_turntable_controller(self):
         """Open turntable rotation control interface."""
         self.turntable_controller = TurntableController()
-        self.turntable_controller.ui.show()
-        self.ui.close()
+        if not GUI_DISABLED:
+            self.turntable_controller.ui.show()
+            self.ui.close()
     
     def _return_to_system_initializer(self):
         """Return to system initialization interface."""
         self.system_initializer = SystemInitializer()
-        self.system_initializer.ui.show()
-        self.ui.close()
+        if not GUI_DISABLED:
+            self.system_initializer.ui.show()
+            self.ui.close()
 
 
 class TurntableController(QWidget):
@@ -319,20 +345,21 @@ class TurntableController(QWidget):
     
     def __init__(self):
         """Initialize the turntable controller interface."""
-        super(TurntableController, self).__init__()
+        super(TurntableController, self).__init__() if not GUI_DISABLED else None
         
-        self.ui = QUiLoader().load(UI_BASE_PATH + "/turntable_controller.ui")
+        self.ui = QUiLoader().load(UI_BASE_PATH + "/turntable_controller.ui") if not GUI_DISABLED else None
         
-        # Connect UI signals
-        self.ui.exit_button.clicked.connect(self._exit_controller)
-        self.ui.rotate_button.clicked.connect(self._execute_rotation)
-        
-        # Set background and styling
-        background_style = qlabel_bg_style(LOGIN_BG_FILENAME)
-        self.ui.rotate_zp_pic.setStyleSheet(background_style)
-        self.ui.status_label.setText("Please select rotation function!")
-        self.ui.status_label.setStyleSheet(
-            '''color: red; justify-content: center; align-items: center; text-align: center;''')
+        if not GUI_DISABLED:
+            # Connect UI signals
+            self.ui.exit_button.clicked.connect(self._exit_controller)
+            self.ui.rotate_button.clicked.connect(self._execute_rotation)
+            
+            # Set background and styling
+            background_style = qlabel_bg_style(LOGIN_BG_FILENAME)
+            self.ui.rotate_zp_pic.setStyleSheet(background_style)
+            self.ui.status_label.setText("Please select rotation function!")
+            self.ui.status_label.setStyleSheet(
+                '''color: red; justify-content: center; align-items: center; text-align: center;''')
         
         self.rotation_in_progress = False
     
@@ -340,30 +367,35 @@ class TurntableController(QWidget):
         """Execute turntable rotation."""
         if self.rotation_in_progress == 0:
             self.rotation_in_progress = 1
-            self.ui.status_label.setText("Rotating turntable, please do not operate! Wait for completion!")
+            if not GUI_DISABLED:
+                self.ui.status_label.setText("Rotating turntable, please do not operate! Wait for completion!")
             
             rotation_thread = threading.Thread(target=self._rotation_worker)
             rotation_thread.daemon = True
             rotation_thread.start()
         else:
-            self.ui.status_label.setText("Please wait for current rotation to complete!")
+            if not GUI_DISABLED:
+                self.ui.status_label.setText("Please wait for current rotation to complete!")
     
     def _rotation_worker(self):
         """Worker thread for turntable rotation."""
-        rotation_positions = int(self.ui.rotate_zp_num.currentText())
+        rotation_positions = int(self.ui.rotate_zp_num.currentText()) if not GUI_DISABLED else 0
         turntable_controller.send_turntable_rotation(rotation_positions)
         
-        self.ui.status_label.setText("Rotation completed!")
+        if not GUI_DISABLED:
+            self.ui.status_label.setText("Rotation completed!")
         self.rotation_in_progress = 0
     
     def _exit_controller(self):
         """Exit turntable controller."""
         if self.rotation_in_progress == 0:
             self.main_interface = MultimeterInterface()
-            self.main_interface.ui.show()
-            self.ui.close()
+            if not GUI_DISABLED:
+                self.main_interface.ui.show()
+                self.ui.close()
         else:
-            self.ui.status_label.setText("Please wait for rotation to complete before exiting!")
+            if not GUI_DISABLED:
+                self.ui.status_label.setText("Please wait for rotation to complete before exiting!")
 
 
 class NewMultimeterRegistration(QWidget):
@@ -376,17 +408,18 @@ class NewMultimeterRegistration(QWidget):
     
     def __init__(self):
         """Initialize the new multimeter registration interface."""
-        super(NewMultimeterRegistration, self).__init__()
+        super(NewMultimeterRegistration, self).__init__() if not GUI_DISABLED else None
         
-        self.ui = QUiLoader().load(UI_BASE_PATH + "/new_multimeter_registration.ui")
+        self.ui = QUiLoader().load(UI_BASE_PATH + "/new_multimeter_registration.ui") if not GUI_DISABLED else None
         
-        # Connect UI signals
-        self.ui.register_button.clicked.connect(self._register_new_multimeter)
-        self.ui.exit_button.clicked.connect(self._exit_registration)
-        
-        # Set background
-        background_style = qlabel_bg_style(LOGIN_BG_FILENAME)
-        self.ui.background_label.setStyleSheet(background_style)
+        if not GUI_DISABLED:
+            # Connect UI signals
+            self.ui.register_button.clicked.connect(self._register_new_multimeter)
+            self.ui.exit_button.clicked.connect(self._exit_registration)
+            
+            # Set background
+            background_style = qlabel_bg_style(LOGIN_BG_FILENAME)
+            self.ui.background_label.setStyleSheet(background_style)
     
     def _register_new_multimeter(self):
         """Register a new multimeter by importing Excel calibration data."""
@@ -417,10 +450,10 @@ class NewMultimeterRegistration(QWidget):
         
         # File selection dialog
         file_filter = "Excel files (*.xlsx)"
-        options = QFileDialog.Options()
+        options = QFileDialog.Options() if not GUI_DISABLED else None
         default_path = "D:/new_wyb_sys/renew"
         file_path, _ = QFileDialog.getOpenFileName(self, "Select Excel File", 
-                                                 default_path, file_filter, options=options)
+                                                 default_path, file_filter, options=options) if not GUI_DISABLED else (None, None)
         
         if file_path:
             workbook = load_workbook(file_path)
@@ -436,8 +469,9 @@ class NewMultimeterRegistration(QWidget):
             type_exists = cursor.fetchone()[0]
             
             if type_exists == 1:
-                QMessageBox.information(QMessageBox(), 'Registration', 
-                                      "Please check multimeter type, this type is already registered!")
+                if not GUI_DISABLED:
+                    QMessageBox.information(QMessageBox(), 'Registration', 
+                                          "Please check multimeter type, this type is already registered!")
             else:
                 # Check if serial number already exists
                 cursor.execute(serial_check_sql, (multimeter_serial,))
@@ -445,12 +479,14 @@ class NewMultimeterRegistration(QWidget):
                 serial_exists = cursor.fetchone()[0]
                 
                 if serial_exists == 1:
-                    QMessageBox.information(QMessageBox(), 'Registration', 
-                                          "Please check serial number, this serial is already registered!")
+                    if not GUI_DISABLED:
+                        QMessageBox.information(QMessageBox(), 'Registration', 
+                                              "Please check serial number, this serial is already registered!")
                 else:
                     # Register new multimeter
                     self._process_excel_data(worksheet, multimeter_type, multimeter_serial)
-                    QMessageBox.information(QMessageBox(), 'Registration', "Registration successful!")
+                    if not GUI_DISABLED:
+                        QMessageBox.information(QMessageBox(), 'Registration', "Registration successful!")
             
             workbook.save(file_path)
     
@@ -572,80 +608,93 @@ class NewMultimeterRegistration(QWidget):
     def _exit_registration(self):
         """Exit new multimeter registration interface."""
         self.main_interface = MultimeterInterface()
-        self.main_interface.ui.show()
-        self.ui.close()
+        if not GUI_DISABLED:
+            self.main_interface.ui.show()
+            self.ui.close()
 
 
 class EquipmentManager(QWidget):
     def __init__(self):
-        super(EquipmentManager, self).__init__()
-        self.ui = QUiLoader().load(UI_BASE_PATH + "/equipment_manager.ui")
-        self.ui.exit_button.clicked.connect(self.close_window)
+        super(EquipmentManager, self).__init__() if not GUI_DISABLED else None
+        self.ui = QUiLoader().load(UI_BASE_PATH + "/equipment_manager.ui") if not GUI_DISABLED else None
+        if not GUI_DISABLED:
+            self.ui.exit_button.clicked.connect(self.close_window)
 
     def close_window(self):
         self.main_interface = MultimeterInterface()
-        self.main_interface.ui.show()
-        self.ui.close()
+        if not GUI_DISABLED:
+            self.main_interface.ui.show()
+            self.ui.close()
 
 
 class MeasurementRunner(QWidget):
     def __init__(self):
-        super(MeasurementRunner, self).__init__()
-        self.ui = QUiLoader().load(UI_BASE_PATH + "/measurement_runner.ui")
-        self.ui.exit_button.clicked.connect(self.close_window)
+        super(MeasurementRunner, self).__init__() if not GUI_DISABLED else None
+        self.ui = QUiLoader().load(UI_BASE_PATH + "/measurement_runner.ui") if not GUI_DISABLED else None
+        if not GUI_DISABLED:
+            self.ui.exit_button.clicked.connect(self.close_window)
 
     def close_window(self):
         self.main_interface = MultimeterInterface()
-        self.main_interface.ui.show()
-        self.ui.close()
+        if not GUI_DISABLED:
+            self.main_interface.ui.show()
+            self.ui.close()
 
 
 class ManualMeasurementRunner(QWidget):
     def __init__(self):
-        super(ManualMeasurementRunner, self).__init__()
-        self.ui = QUiLoader().load(UI_BASE_PATH + "/manual_measurement_runner.ui")
-        self.ui.exit_button.clicked.connect(self.close_window)
+        super(ManualMeasurementRunner, self).__init__() if not GUI_DISABLED else None
+        self.ui = QUiLoader().load(UI_BASE_PATH + "/manual_measurement_runner.ui") if not GUI_DISABLED else None
+        if not GUI_DISABLED:
+            self.ui.exit_button.clicked.connect(self.close_window)
 
     def close_window(self):
         self.main_interface = MultimeterInterface()
-        self.main_interface.ui.show()
-        self.ui.close()
+        if not GUI_DISABLED:
+            self.main_interface.ui.show()
+            self.ui.close()
 
 
 class DataManager(QWidget):
     def __init__(self):
-        super(DataManager, self).__init__()
-        self.ui = QUiLoader().load(UI_BASE_PATH + "/data_manager.ui")
-        self.ui.exit_button.clicked.connect(self.close_window)
+        super(DataManager, self).__init__() if not GUI_DISABLED else None
+        self.ui = QUiLoader().load(UI_BASE_PATH + "/data_manager.ui") if not GUI_DISABLED else None
+        if not GUI_DISABLED:
+            self.ui.exit_button.clicked.connect(self.close_window)
 
     def close_window(self):
         self.main_interface = MultimeterInterface()
-        self.main_interface.ui.show()
-        self.ui.close()
+        if not GUI_DISABLED:
+            self.main_interface.ui.show()
+            self.ui.close()
 
 
 class DataQueryInterface(QWidget):
     def __init__(self):
-        super(DataQueryInterface, self).__init__()
-        self.ui = QUiLoader().load(UI_BASE_PATH + "/data_query.ui")
-        self.ui.exit_button.clicked.connect(self.close_window)
+        super(DataQueryInterface, self).__init__() if not GUI_DISABLED else None
+        self.ui = QUiLoader().load(UI_BASE_PATH + "/data_query.ui") if not GUI_DISABLED else None
+        if not GUI_DISABLED:
+            self.ui.exit_button.clicked.connect(self.close_window)
 
     def close_window(self):
         self.main_interface = MultimeterInterface()
-        self.main_interface.ui.show()
-        self.ui.close()
+        if not GUI_DISABLED:
+            self.main_interface.ui.show()
+            self.ui.close()
 
 
 class ReportGenerator(QWidget):
     def __init__(self):
-        super(ReportGenerator, self).__init__()
-        self.ui = QUiLoader().load(UI_BASE_PATH + "/report_generator.ui")
-        self.ui.exit_button.clicked.connect(self.close_window)
+        super(ReportGenerator, self).__init__() if not GUI_DISABLED else None
+        self.ui = QUiLoader().load(UI_BASE_PATH + "/report_generator.ui") if not GUI_DISABLED else None
+        if not GUI_DISABLED:
+            self.ui.exit_button.clicked.connect(self.close_window)
 
     def close_window(self):
         self.main_interface = MultimeterInterface()
-        self.main_interface.ui.show()
-        self.ui.close()
+        if not GUI_DISABLED:
+            self.main_interface.ui.show()
+            self.ui.close()
 
 
 class QueryResultDisplay(QWidget):
@@ -658,12 +707,14 @@ class QueryResultDisplay(QWidget):
 
 if __name__ == '__main__':
     """Main application entry point."""
-    QtCore.QCoreApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling)
-    
-    app = QApplication([])
-    
-    # Create and show system initializer
-    system_initializer = SystemInitializer()
-    system_initializer.ui.show()
-    
-    app.exec_()
+    if GUI_DISABLED:
+        # Run diagnostics instead of GUI
+        import socket_diagnostics as diag
+        ok = diag.run()
+        sys.exit(0 if ok else 1)
+    else:
+        QtCore.QCoreApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling)
+        app = QApplication([])
+        system_initializer = SystemInitializer()
+        system_initializer.ui.show()
+        app.exec_()
