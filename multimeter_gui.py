@@ -35,20 +35,20 @@ import copy
 import threading
 from datetime import datetime
 
-# Third-party imports
-import serial
-import pymysql
-import cv2
-import numpy as np
-import openpyxl
-from openpyxl import load_workbook
-from openpyxl.utils.dataframe import dataframe_to_rows
-from openpyxl import Workbook
-from openpyxl.utils import get_column_letter
-import pandas as pd
+# Third-party imports (trimmed: remove DB and image libs not needed here)
+# import serial
+# import pymysql
+# import cv2
+# import numpy as np
+# import openpyxl
+# from openpyxl import load_workbook
+# from openpyxl.utils.dataframe import dataframe_to_rows
+# from openpyxl import Workbook
+# from openpyxl.utils import get_column_letter
+# import pandas as pd
 
 # PySide2 GUI imports (lazy optional when GUI disabled)
-GUI_DISABLED = os.environ.get('DISABLE_GUI', '1') == '1'
+from system_config import GUI_DISABLED
 if not GUI_DISABLED:
     from PySide2.QtWidgets import (QApplication, QTableWidget, QTableWidgetItem, 
                                    QInputDialog, QMainWindow, QMessageBox, 
@@ -83,43 +83,19 @@ from system_config import UI_BASE_DIRECTORY
 UI_BASE_PATH = str(UI_BASE_DIRECTORY)
 CURRENT_ROW = 2
 
-# Use ASCII-only unicode escape for the background filename to avoid encoding issues in source
-LOGIN_BG_FILENAME = '\u767b\u5f55\u5e95\u677f.png'  # µÇÂ¼µ×°å.png
-
-
-def qlabel_bg_style(filename: str) -> str:
-    """Build a QSS stylesheet string for QLabel background using a safe ASCII path."""
-    path = os.path.join(UI_BASE_PATH, filename).replace('\\', '/')
-    return "QLabel{border-image: url(" + path + ")}"  # avoid f-string brace escaping
+# Removed GUI background image dependencies (.png)
+# LOGIN_BG_FILENAME and qlabel_bg_style are no longer needed
 
 # Global variables for measurement data
 measurement_vector = []
 multimeter_models = ['FlUKE1', 'VICTORY1', 'KLET1', 'PLAY1', 'NEW1', 'TREATR1', 'ZHUYI1']
 multimeter_types = ['FlUKE', 'VICTORY', 'KLET', 'PLAY', 'NEW', 'TREATR', 'ZHUYI']
 total_equipment_count = 2
-equipment_image_path = 'E:/photo/zp.jpg'
+# Removed GUI-related image path
+# equipment_image_path = 'E:/photo/zp.jpg'
 
-# Database connection from robot_controller
-database_connection = robot_controller.database_connection
-
-class MockCursor:
-    def execute(self, *args, **kwargs):
-        pass
-    def fetchone(self):
-        return None
-    def fetchall(self):
-        return []
-
-class MockConnection:
-    def cursor(self):
-        return MockCursor()
-    def commit(self):
-        pass
-    def close(self):
-        pass
-
-if database_connection is None:
-    database_connection = MockConnection()
+# Removed database connection usage; database is no longer required
+# database_connection and mocks removed entirely
 
 # Measurement vectors for different test types
 voltage_vector_1 = [1, 2, 3, 4, 5]
@@ -179,23 +155,21 @@ class SystemInitializer:
             self.ui.exit_button.clicked.connect(self._exit_application)
             self.ui.test_button.clicked.connect(self._test_system_communication)
             
-            # Set background image
-            self.ui.background_label.setStyleSheet(qlabel_bg_style('base.png'))
+            # Removed background image styling (.png not needed)
+            # self.ui.background_label.setStyleSheet(qlabel_bg_style('base.png'))
             
             # Initially hide navigation buttons
             self.ui.multimeter_button.setVisible(False)
             self.ui.digital_button.setVisible(False)
             self.ui.test_button.setVisible(True)
         
-        # Reset turntable position in database
-        self._reset_turntable_position()
+        # Database removed: no turntable position reset
+        # self._reset_turntable_position()
     
-    def _reset_turntable_position(self):
-        """Reset turntable position data in database."""
-        cursor = database_connection.cursor()
-        sql = "UPDATE wyb_zp_temp SET zp_all_pos = %s WHERE id = 1"
-        cursor.execute(sql, ('0&0&0&0&0&0',))
-        database_connection.commit()
+    # Removed DB-dependent method
+    # def _reset_turntable_position(self):
+    #     """Reset turntable position data in database."""
+    #     pass
     
     def _navigate_to_multimeter_interface(self):
         """Navigate to the main multimeter testing interface."""
@@ -249,11 +223,11 @@ class MultimeterInterface:
             self.ui.turntable_button.clicked.connect(self._open_turntable_controller)
             self.ui.exit_button.clicked.connect(self._return_to_system_initializer)
             
-            # Set background and styling
-            background_style = qlabel_bg_style(LOGIN_BG_FILENAME)
-            self.ui.background_label.setStyleSheet(background_style)
+            # Removed background and styling dependent on PNGs
+            # background_style = qlabel_bg_style(LOGIN_BG_FILENAME)
+            # self.ui.background_label.setStyleSheet(background_style)
             
-            # Set text and button colors
+            # Keep some simple styling examples (not image-based)
             self.ui.title_label.setStyleSheet("color: red;")
             self.ui.equipment_button.setStyleSheet("background-color: yellow;")
             self.ui.manual_button.setStyleSheet("background-color: yellow;")
@@ -274,23 +248,11 @@ class MultimeterInterface:
             self.ui.close()
     
     def _start_manual_measurement(self):
-        """Start manual measurement process."""
-        cursor = database_connection.cursor()
-        sql = "SELECT num,nio FROM wyb_test_info WHERE equip_num = 1"
-        cursor.execute(sql)
-        database_connection.commit()
-        result = cursor.fetchone()
-        
-        if result is None:
-            if not GUI_DISABLED:
-                QMessageBox.information(self.ui, 'Measurement', 
-                                      'No equipment mounted. Please mount equipment before measurement.')
-            return
-        else:
-            self.manual_runner = ManualMeasurementRunner()
-            if not GUI_DISABLED:
-                self.manual_runner.ui.show()
-                self.ui.close()
+        """Start manual measurement process (DB removed -> no check)."""
+        self.manual_runner = ManualMeasurementRunner()
+        if not GUI_DISABLED:
+            self.manual_runner.ui.show()
+            self.ui.close()
     
     def _open_data_manager(self):
         """Open data management interface."""
@@ -354,9 +316,9 @@ class TurntableController(QWidget):
             self.ui.exit_button.clicked.connect(self._exit_controller)
             self.ui.rotate_button.clicked.connect(self._execute_rotation)
             
-            # Set background and styling
-            background_style = qlabel_bg_style(LOGIN_BG_FILENAME)
-            self.ui.rotate_zp_pic.setStyleSheet(background_style)
+            # Removed PNG-dependent background styling
+            # background_style = qlabel_bg_style(LOGIN_BG_FILENAME)
+            # self.ui.rotate_zp_pic.setStyleSheet(background_style)
             self.ui.status_label.setText("Please select rotation function!")
             self.ui.status_label.setStyleSheet(
                 '''color: red; justify-content: center; align-items: center; text-align: center;''')
@@ -402,8 +364,7 @@ class NewMultimeterRegistration(QWidget):
     """
     New multimeter registration interface.
     
-    This class handles the registration of new multimeter models by importing
-    calibration data from Excel files and updating the database accordingly.
+    Database features removed; this UI remains for future expansion but performs no DB operations.
     """
     
     def __init__(self):
@@ -417,193 +378,15 @@ class NewMultimeterRegistration(QWidget):
             self.ui.register_button.clicked.connect(self._register_new_multimeter)
             self.ui.exit_button.clicked.connect(self._exit_registration)
             
-            # Set background
-            background_style = qlabel_bg_style(LOGIN_BG_FILENAME)
-            self.ui.background_label.setStyleSheet(background_style)
+            # Removed PNG-dependent background
+            # background_style = qlabel_bg_style(LOGIN_BG_FILENAME)
+            # self.ui.background_label.setStyleSheet(background_style)
     
     def _register_new_multimeter(self):
-        """Register a new multimeter by importing Excel calibration data."""
-        cursor = database_connection.cursor()
-        
-        # SQL queries for checking existing records
-        type_check_sql = """
-            SELECT 
-                CASE 
-                    WHEN NOT EXISTS (
-                        SELECT type FROM wyb_name_info WHERE type = %s
-                    )
-                    THEN -1
-                    ELSE 1
-                END AS result
-        """
-        
-        serial_check_sql = """
-            SELECT 
-                CASE 
-                    WHEN NOT EXISTS (
-                        SELECT nio FROM wyb_name_info WHERE nio = %s
-                    )
-                    THEN -1
-                    ELSE 1
-                END AS result
-        """
-        
-        # File selection dialog
-        file_filter = "Excel files (*.xlsx)"
-        options = QFileDialog.Options() if not GUI_DISABLED else None
-        default_path = "D:/new_wyb_sys/renew"
-        file_path, _ = QFileDialog.getOpenFileName(self, "Select Excel File", 
-                                                 default_path, file_filter, options=options) if not GUI_DISABLED else (None, None)
-        
-        if file_path:
-            workbook = load_workbook(file_path)
-            worksheet = workbook.active
-            
-            # Extract multimeter information from Excel
-            multimeter_type = worksheet.cell(row=4, column=3).value
-            multimeter_serial = worksheet.cell(row=3, column=3).value
-            
-            # Check if type already exists
-            cursor.execute(type_check_sql, (multimeter_type,))
-            database_connection.commit()
-            type_exists = cursor.fetchone()[0]
-            
-            if type_exists == 1:
-                if not GUI_DISABLED:
-                    QMessageBox.information(QMessageBox(), 'Registration', 
-                                          "Please check multimeter type, this type is already registered!")
-            else:
-                # Check if serial number already exists
-                cursor.execute(serial_check_sql, (multimeter_serial,))
-                database_connection.commit()
-                serial_exists = cursor.fetchone()[0]
-                
-                if serial_exists == 1:
-                    if not GUI_DISABLED:
-                        QMessageBox.information(QMessageBox(), 'Registration', 
-                                              "Please check serial number, this serial is already registered!")
-                else:
-                    # Register new multimeter
-                    self._process_excel_data(worksheet, multimeter_type, multimeter_serial)
-                    if not GUI_DISABLED:
-                        QMessageBox.information(QMessageBox(), 'Registration', "Registration successful!")
-            
-            workbook.save(file_path)
-    
-    def _process_excel_data(self, worksheet, multimeter_type, multimeter_serial):
-        """Process Excel data and update database."""
-        cursor = database_connection.cursor()
-        
-        # Generate multimeter number
-        multimeter_number = multimeter_type.replace('&', '') + '001'
-        
-        # Insert into wyb_name_info table
-        insert_name_sql = 'INSERT INTO wyb_name_info (`num`, `type`, `nio`) VALUES (%s, %s, %s)'
-        cursor.execute(insert_name_sql, (multimeter_number, multimeter_type, multimeter_serial))
-        database_connection.commit()
-        
-        # Extract calibration data
-        total_dial_positions = worksheet.cell(row=5, column=3).value
-        lcd_position = worksheet.cell(row=6, column=3).value
-        turntable_position = worksheet.cell(row=7, column=3).value
-        angle_corrections = worksheet.cell(row=8, column=3).value.split('&')
-        clockwise_angle = angle_corrections[0]
-        counterclockwise_angle = angle_corrections[1]
-        position_count = worksheet.cell(row=9, column=3).value
-        
-        # Insert into wyb_info table
-        insert_info_sql = '''INSERT INTO wyb_info (`type`,`dang_num`, `key_num`, `lcd_pos`, `zp_pos`, 
-                           `key1_pos`, `key2_pos`, `k1_pos`, `k2_pos`, `k3_pos`, `k4_pos`, 
-                           `shun_angle`, `ni_angle`, `d_all_wyb`, `d_wyb_lcd`) 
-                           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)'''
-        cursor.execute(insert_info_sql, (multimeter_type, position_count, '0', '0', turntable_position, 
-                                        '0', '0', None, None, None, None, clockwise_angle, 
-                                        counterclockwise_angle, total_dial_positions, lcd_position))
-        database_connection.commit()
-        
-        # Process dial positions
-        self._process_dial_positions(worksheet, multimeter_type, multimeter_number, position_count)
-    
-    def _process_dial_positions(self, worksheet, multimeter_type, multimeter_number, position_count):
-        """Process dial position data from Excel."""
-        cursor = database_connection.cursor()
-        
-        # Calculate angle increment
-        total_angle = worksheet.cell(row=10, column=3).value
-        angle_increment = float(total_angle) / float(position_count)
-        
-        # Process OFF position (first position)
-        position_id = worksheet.cell(row=14, column=1).value
-        dial_angle = worksheet.cell(row=14, column=2).value
-        position_type = worksheet.cell(row=14, column=3).value
-        
-        insert_position_sql = '''INSERT INTO wyb_unit_info (`type`, `dang_num`, `dang_angle`, 
-                               `key`, `dang_type`) VALUES (%s, %s, %s, %s, %s)'''
-        cursor.execute(insert_position_sql, (multimeter_type, position_id, dial_angle, '0', position_type))
-        database_connection.commit()
-        
-        # Process remaining positions
-        for i in range(15, position_count + 14):
-            position_id = worksheet.cell(row=i, column=1).value
-            position_type = worksheet.cell(row=i, column=3).value
-            dial_angle = round((dial_angle + angle_increment), 3)
-            
-            if dial_angle >= 360.000:
-                dial_angle = round((dial_angle - 360.000), 3)
-            
-            cursor.execute(insert_position_sql, (multimeter_type, position_id, dial_angle, '0', position_type))
-            database_connection.commit()
-        
-        # Process measurement values
-        self._process_measurement_values(worksheet, multimeter_type, multimeter_number, position_count)
-    
-    def _process_measurement_values(self, worksheet, multimeter_type, multimeter_number, position_count):
-        """Process measurement value data from Excel."""
-        cursor = database_connection.cursor()
-        measurement_id = 1
-        
-        for i in range(15, position_count + 14):
-            if worksheet.cell(row=i, column=4).value is not None:
-                measurement_values = str(worksheet.cell(row=i, column=4).value).split('&')
-                
-                for measurement in measurement_values:
-                    # Determine unit value and unit type
-                    unit_value, unit = self._determine_unit_info(worksheet, i, measurement)
-                    frequency = worksheet.cell(row=i, column=5).value
-                    position_number = worksheet.cell(row=i, column=1).value
-                    
-                    # Insert measurement value
-                    insert_value_sql = '''INSERT INTO wyb_value (`id_num`, `num`, `dang_num`, `key`, `unit`, 
-                                        `hz`, `unit_value`,`measure`, `mea_time`, `m_1`, `m_2`, `m_3`, `m_average`,
-                                        `m_max`, `m_min`, `m_sz`, `m_xd`, `m_repeat`, `pass`, `ol`) 
-                                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)'''
-                    
-                    cursor.execute(insert_value_sql, (measurement_id, multimeter_number, position_number, 0, 
-                                                    unit, frequency, unit_value, measurement, None, None, None, None, 
-                                                    None, None, None, None, None, None, None, None))
-                    database_connection.commit()
-                    measurement_id += 1
-    
-    def _determine_unit_info(self, worksheet, row, measurement):
-        """Determine unit value and unit type based on measurement data."""
-        base_unit = worksheet.cell(row=row, column=3).value
-        frequency = worksheet.cell(row=row, column=5).value
-        
-        if frequency != 0:
-            unit_value = 0
-            unit = base_unit
-        elif '-' in measurement:
-            unit_value = -1
-            unit = base_unit + '-'
-        elif ('-' not in measurement) and (frequency == 0):
-            unit_value = 1
-            if 'R' not in str(base_unit):
-                unit = base_unit + '+'
-            else:
-                unit = base_unit
-                unit_value = 0
-        
-        return unit_value, unit
+        """Stub: Database is removed; inform user."""
+        if not GUI_DISABLED:
+            QMessageBox.information(QMessageBox(), 'Registration', 
+                                    'Database functionality is disabled. Registration is unavailable.')
     
     def _exit_registration(self):
         """Exit new multimeter registration interface."""
@@ -711,7 +494,26 @@ if __name__ == '__main__':
         # Run diagnostics instead of GUI
         import socket_diagnostics as diag
         ok = diag.run()
-        sys.exit(0 if ok else 1)
+        # Import movement test functions right under diagnostics
+        try:
+            from movement_test import movement_main
+        except Exception:
+            movement_main = None
+        # Prompt for 6 joint values and run movement test accordingly
+        try:
+            line = input("Enter 6 joint angles (deg) separated by spaces (e.g., 0 -45 30 0 60 0). Press Enter to skip: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            line = ""
+        if movement_main and line:
+            parts = line.split()
+            if len(parts) >= 6:
+                move_args = parts[:6]
+                # Execute movement test with provided angles
+                sys.exit(movement_main(move_args))
+            else:
+                print(f"Expected 6 numbers, got {len(parts)}. Exiting.")
+                sys.exit(2)
+        sys.exit(0)
     else:
         QtCore.QCoreApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling)
         app = QApplication([])

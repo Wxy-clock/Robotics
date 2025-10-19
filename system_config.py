@@ -3,9 +3,9 @@
 """
 Configuration Constants for Multimeter Testing System
 
-This module contains all configuration constants used throughout the
-multimeter testing system including file paths, database settings,
-hardware parameters, and system limits.
+This module contains configuration constants used throughout the
+multimeter testing system including file paths, hardware parameters,
+and system limits. Database and GUI PNG dependencies have been removed.
 """
 
 import os
@@ -18,6 +18,14 @@ from pathlib import Path
 APPLICATION_NAME = "Multimeter Testing System"
 APPLICATION_VERSION = "1.0.0"
 APPLICATION_AUTHOR = "Robotics Lab"
+
+# =============================================================================
+# RUNTIME/GUI CONFIGURATION
+# =============================================================================
+
+# Centralized toggle to enable/disable GUI usage across the application.
+# Set to True to run in headless mode (no GUI), or False to enable the GUI.
+GUI_DISABLED = True
 
 # =============================================================================
 # FILE PATHS AND DIRECTORIES
@@ -44,39 +52,13 @@ DATA_MANAGER_UI_FILE = UI_BASE_DIRECTORY / "data_manager.ui"
 QUERY_UI_FILE = UI_BASE_DIRECTORY / "data_query.ui"
 QUERY_RESULT_UI_FILE = UI_BASE_DIRECTORY / "query_result.ui"
 
-# Image file paths
-BACKGROUND_IMAGE_PATH = UI_BASE_DIRECTORY / "login_background.png"
-EQUIPMENT_IMAGE_PATH = PHOTO_BASE_DIRECTORY / "equipment.jpg"
+# Non-GUI temp paths retained if used elsewhere
 BLACK_IMAGE_PATH = TEMP_IMAGE_DIRECTORY / "black.png"
 RECOGNITION_RESULT_PATH = TEMP_IMAGE_DIRECTORY / "recognition_result.png"
-
-# Model file paths
-DIGIT_RECOGNITION_MODEL_PATH = SYSTEM_DATA_DIRECTORY / "models/digit_recognition.pt"
 
 # Default data paths
 DEFAULT_EXCEL_IMPORT_PATH = SYSTEM_DATA_DIRECTORY / "import"
 DEFAULT_EXPORT_PATH = Path("data/export/")
-
-# =============================================================================
-# DATABASE CONFIGURATION
-# =============================================================================
-
-# Database connection parameters
-DATABASE_HOST = "localhost"
-DATABASE_PORT = 3306
-DATABASE_USER = "root"
-DATABASE_PASSWORD = "123456"
-DATABASE_NAME = "robot"
-
-# Database table names
-TABLE_MULTIMETER_INFO = "wyb_name_info"
-TABLE_MULTIMETER_DETAILS = "wyb_info"
-TABLE_MULTIMETER_UNITS = "wyb_unit_info"
-TABLE_MEASUREMENT_VALUES = "wyb_value"
-TABLE_TEST_INFO = "wyb_test_info"
-TABLE_FIXTURE_INFO = "jiajv_info"
-TABLE_TURNTABLE_TEMP = "wyb_zp_temp"
-TABLE_POSITION_INFO = "wyb_pos_3"
 
 # =============================================================================
 # HARDWARE CONFIGURATION
@@ -400,9 +382,9 @@ def validate_environment():
         if not validate_file_path(ui_file):
             error_messages.append(f"Missing UI file: {ui_file}")
     
-    # Check if model file exists
-    if not validate_file_path(DIGIT_RECOGNITION_MODEL_PATH):
-        error_messages.append(f"Missing model file: {DIGIT_RECOGNITION_MODEL_PATH}")
+    # Removed model file validation to avoid hard dependency
+    # if not validate_file_path(DIGIT_RECOGNITION_MODEL_PATH):
+    #     error_messages.append(f"Missing model file: {DIGIT_RECOGNITION_MODEL_PATH}")
     
     # Check if directories are writable
     test_directories = [
