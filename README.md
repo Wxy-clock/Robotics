@@ -1,107 +1,124 @@
-# Robotics - Automated Multimeter Testing System
+﻿# Robotics – Automated Multimeter Testing System
 
-This project is an automated testing system for multimeters using a robotic arm, computer vision, and a dedicated graphical user interface. The system is designed to automate the process of testing various functions of multimeters, recording the results, and ensuring accuracy through a combination of hardware control and software logic.
+A Python-based system to automate multimeter testing with a 6‑DOF robot arm, a microcontroller (gripper/pressure), a turntable, and optional machine vision. The repository contains a runnable headless toolset, a proxy for distributed hardware, a GUI skeleton, and safety scaffolding.
 
-## Software Architecture
+## Overview
+- **Purpose**: automate probing, switching, reading, and recording measurements on multimeters.
+- **Current focus**: headless tools, robot/microcontroller integration, diagnostics, and scaffolding for GUI and vision.
+- **GUI**: present but minimal; disabled by default (`GUI_DISABLED=True`).
 
-The application is built using Python and the PySide2 library for the graphical user interface. It follows a modular architecture:
+## Project status
+- **Implemented**
+  - Robot controller integration via vendor SDK (`Robot.py`) with realtime channel (20004) and XML‑RPC commands (20003).
+  - Proxy-aware endpoint resolution (`proxy_connection.py`) and a middleman XML‑RPC bridge for pressure/gripper (`middleman_proxy.py`).
+  - Microcontroller comm over serial with auto-discovery and XML‑RPC mode (`MicrocontrollerCommunication`).
+  - Headless utilities: realtime data monitor, movement test CLI, socket diagnostics, movement script parser.
+  - Safety scaffolding for movement with runtime 5 Hz coordinate monitor (`movement_safety_config.py`).
+  - Basic turntable serial driver.
+  - Vision modules (YOLO/OpenCV) prepared and decoupled from the core path.
+- **Not implemented / known gaps**
+  - Database features removed; code paths referring to DB are stubbed or commented.
+  - GUI screens are placeholders; business logic is mostly not wired to hardware.
+  - Safety limits in `movement_safety_config.py` are placeholders (`...`). Must be filled before enabling motion paths that validate limits.
+  - No packaged model artifacts; vision features require user-provided weights and assets.
+  - Turntable control is serial-only (no RPC bridge).
+  - Many coordinates/fixtures are example defaults; calibration and teach data persistence are not included.
 
-1.  **GUI (`multimeter_gui.py`)**: The main entry point and user interface, providing controls for all system operations.
-2.  **Robot Control (`robot_controller.py`)**: Manages the robotic arm's movements, including positioning and probe handling. It communicates with the robot hardware and a MySQL database for position data.
-3.  **Hardware Controllers**:
-    *   `turntable_controller.py`: Controls the turntable via serial communication.
-    *   `MvCameraControl_class.py` and related modules: Provide the interface for the machine vision camera.
-4.  **Configuration (`system_config.py`)**: Stores static configuration data like IP addresses, serial ports, and database credentials.
-5.  **Database**: A MySQL database is used to store test results, multimeter calibration data, and system state.
+## Quick start
+- **Requirements**
+  - Python 3.9+ recommended.
+  - Install dependencies: `pip install -r requirements.txt` (you may skip heavy ML deps if you won’t use vision).
+- **Configure**
+  - Set IP/serial and proxy flags in `system_config.py` (preferred) or environment variables (see below).
+  - If using a middleman PC for the microcontroller, run `middleman_proxy.py` there first.
+- **Headless tools**
+  - Realtime monitor (CSV optional): `python data_monitor.py`
+    - Prints 5 Hz joint/TCP/pressure. Logs to `logs/monitor/` when enabled. See Data monitor section below.
+  - Socket diagnostics (connectivity test): `python socket_diagnostics.py`
+  - Movement test (issues a single MoveJ): `python movement_test.py 0 -45 30 0 60 0 --tool 3 --velocity 20`
+  - Scripted motions and I/O (parser): `python movement_command_parser.py test.txt`
+    - By default `MOVEMENT_ENABLED=False` to avoid moving the robot; set to true only after safety limits are configured.
+- **GUI (optional)**
+  - Toggle GUI by setting `GUI_DISABLED=False` in `system_config.py`, then run: `python multimeter_gui.py`
+  - Screens load but most actions are placeholders unless you wire them to your site’s logic.
 
-## Installation and Setup
+## Configuration (central)
+- `system_config.py`
+  - Network: `ROBOT_IP_ADDRESS`, proxy toggles (`ROBOT_PROXY_ENABLED`, `ROBOT_PROXY_ENDPOINT`, `ROBOT_ENDPOINT_OVERRIDE`).
+  - Serial defaults: `SERIAL_PORT`, `SERIAL_BAUDRATE`, `SERIAL_TIMEOUT`.
+  - Robot/tool defaults and heights.
+  - Paths and directories are created on import.
+- Proxy resolution helpers
+  - `proxy_connection.py` selects the effective host considering proxy flags and overrides.
 
-1.  **Prerequisites**:
-    *   Python 3
-    *   Required Python packages: `pyserial`, `pymysql`, `opencv-python`, `numpy`, `openpyxl`, `pandas`, `PySide2`.
-2.  **Hardware**:
-    *   A compatible robotic arm.
-    *   A machine vision camera.
-    *   A turntable mechanism with a serial controller.
-    *   A microcontroller for gripper and sensor communication.
-    *   A MySQL database server.
-3.  **Configuration**:
-    *   Update `system_config.py` with the correct IP addresses, serial port details, and database credentials.
-    *   Ensure the robot, camera, and controllers are connected and powered on.
+## Environment variables (optional)
+- `ROBOT_SKIP_AUTO_INIT`: set `1` to prevent sockets on import in some modules (tools set this as needed).
+- Microcontroller RPC bridge
+  - Client: `PRESSURE_VIA_RPC=1`, optional `PRESSURE_RPC_HOST`, `PRESSURE_RPC_PORT` (defaults to proxy host and 20005 if proxy enabled, else 20003).
+  - Middleman: edit `ProxyConfig` in `middleman_proxy.py` or adapt to env vars as needed; choose a `listen_port` that does not clash with other forwarders.
+- Serial port override: `MICROCONTROLLER_PORT` or `SERIAL_PORT` (e.g., `COM3`).
 
-## Usage Instructions
+## Data monitor (`data_monitor.py`)
+- Reads joint angles, TCP pose, and pressure at `READ_FREQUENCY_HZ` (default 5 Hz). Optionally writes CSV under `logs/monitor/`.
+- Filtering and the “discarded” flag
+  - `discarded_joints` and `discarded_tcp` print flags indicate this cycle’s raw data was rejected by sanity checks (NaN/type errors, absolute caps, or per-cycle deltas).
+  - CSV column `discarded_flag` is the OR of both. When discarded, previous accepted values are reused; pressure is not part of the discard decision.
+  - Thresholds: joints capped by `MAX_JOINT_ABS` and `MAX_JOINT_DELTA`; TCP uses separate position/orientation delta caps.
 
-1.  **Launch the application**:
-    ```bash
-    python multimeter_gui.py
-    ```
-2.  **System Initialization**:
-    *   The application starts with a system interface.
-    *   Click the "Test Communication" button to verify connections to all hardware components (robot, database, camera, etc.).
-    *   Once all tests pass, the button to enter the main multimeter interface will become available.
-3.  **Main Interface**:
-    *   From the main screen, you can navigate to different modules:
-        *   **Equipment Management**: Mount or unmount multimeters.
-        *   **Start Measurement**: Begin an automated testing sequence.
-        *   **Manual Measurement**: Perform individual test steps manually.
-        *   **Data Management**: View and manage test data.
-        *   **Turntable Control**: Manually control the turntable.
-        *   **New Multimeter**: Register a new multimeter model by importing data from an Excel file.
+## Safety (`movement_safety_config.py`)
+- Runtime 5 Hz coordinate monitor is enabled by default (`ENABLE_RUNTIME_COORD_MONITOR=True`).
+- Joint and Cartesian limits are placeholders (`...`). Motion validators raise `SafetyConfigError` if placeholders remain when validation is enabled.
+- Fill concrete ranges per tool before enabling real motion and switch `MOVEMENT_ENABLED=True` in `movement_command_parser.py` if using that tool to execute moves.
 
----
+## Middleman proxy (`middleman_proxy.py`)
+- XML‑RPC bridge that forwards unknown methods to the robot and implements `ReadPressure()` and `Gripper(close)` using a local serial port.
+- Default listen port is `20005` to avoid conflicts with existing forwarders on `20003`.
+- The client side (`MicrocontrollerCommunication`) auto‑switches to RPC mode when `PRESSURE_VIA_RPC=1`, or as a fallback when proxy is enabled and no local serial is available.
 
-## New: Pressure/Gripper via Middleman Proxy (no local COM port required)
+## File index (what each file does)
+- **Core control**
+  - `robot_controller.py`: High‑level `RobotController`, `ProbeHandler`, `MicrocontrollerCommunication`; integrates robot SDK, microcontroller (serial/RPC), and basic sequences.
+  - `Robot.py`: Vendor SDK wrapper (XML‑RPC + realtime 20004). Do not modify unless you know the protocol.
+  - `fairino_related/fairino/Robot.py`: Alternate/copy of vendor SDK; kept for reference.
+  - `proxy_connection.py`: Resolves the target host considering proxy settings.
+  - `system_config.py`: Central configuration and directory bootstrap.
+- **Headless tools and diagnostics**
+  - `data_monitor.py`: Live read/print/log joint/TCP/pressure with spike filtering.
+  - `movement_test.py`: One‑shot MoveJ CLI with pressure‑based E‑stop monitor.
+  - `movement_command_parser.py`: Executes plain‑text command scripts against `RobotController`, `ProbeHandler`, `MicrocontrollerCommunication`, `PressureMonitor` with validation.
+  - `movement_safety_config.py`: Limits and validators for joint/Cartesian moves and a runtime safety monitor.
+  - `socket_diagnostics.py`: Tests raw TCP to 20004, XML‑RPC to 20003, and SDK realtime reads.
+- **Hardware drivers**
+  - `turntable_controller.py`: Serial turntable rotation command (serial‑only path).
+  - `standard_source_controller.py`: PyVISA control helpers for external standard source.
+- **Middleman bridge**
+  - `middleman_proxy.py`: XML‑RPC server that forwards to robot and bridges local serial for pressure/gripper.
+- **Vision and processing**
+  - `image_processing.py`: YOLO‑based LCD digit and QR recognition scaffold; requires `ultralytics` and user weights.
+  - `convert_new.py`: Circle/knob detection utilities for test‑point localization.
+  - `export.py`: Upstream YOLOv5 export utility (unchanged, kept for convenience).
+- **GUI shell**
+  - `multimeter_gui.py`: PySide2 screens; logic mostly stubbed. Controlled by `GUI_DISABLED`.
+- **Utilities and docs**
+  - `NAMING_CONVENTION.md`: Code naming guidelines.
+  - `requirements.txt`: Dependency list (some optional/heavy).
+  - `development_phase_report.txt`: Notes and progress (if present).
+  - Misc camera headers: `MvCameraControl_class.py`, `CameraParams_const.py`, `CameraParams_header.py`, `PixelType_header.py`, `MvErrorDefine_const.py` (SDK-related).
 
-When the microcontroller (pressure sensor / gripper) is physically attached to a middleman PC, you can bypass the local COM port by tunneling over the same XML-RPC channel as the robot.
+## Typical workflows
+- Headless monitoring while other tools run: start `data_monitor.py` in a separate terminal. Enable CSV to produce timestamped logs under `logs/monitor/`.
+- Network bring‑up: run `socket_diagnostics.py` to verify 20003/20004 reachability and realtime reads before attempting motion.
+- Distributed microcontroller: deploy `middleman_proxy.py` on the PC with the USB device; set `PRESSURE_VIA_RPC=1` on the client, keep your robot XML‑RPC tunnel aimed at the middleman’s port.
+- Cautious motion: configure `movement_safety_config.py`, keep parser’s `MOVEMENT_ENABLED=False` until limits are filled and validated, then enable.
 
-### What was added
-- `middleman_proxy.py`: an XML-RPC proxy to run on the middleman machine. It:
-  - Listens on a TCP port (default 20003)
-  - Forwards unknown robot methods to the real robot (`ROBOT_UPSTREAM_HOST:20003`)
-  - Implements two extra methods: `ReadPressure()` and `Gripper(close)` using the middleman��s serial port
-- `MicrocontrollerCommunication` supports an RPC mode. Enable with env `PRESSURE_VIA_RPC=1` on the client side.
+## Troubleshooting
+- Realtime reads fail or hang
+  - Check that your tunnel/route exposes 20004 in addition to 20003.
+  - See `socket_diagnostics.py` summary results.
+- Microcontroller not found (serial)
+  - Set `MICROCONTROLLER_PORT` explicitly or use the RPC mode (`PRESSURE_VIA_RPC=1`).
+- Vision errors
+  - Ensure `ultralytics` is installed and provide your model weights under the expected paths.
 
-### Deploy on the middleman
-1. Ensure Python 3 is installed and the microcontroller is physically connected (visible as a COM port in Device Manager).
-2. Install required package:
-   ```bash
-   pip install pyserial
-   ```
-3. Set environment and run the proxy (Windows PowerShell example):
-   ```powershell
-   set ROBOT_UPSTREAM_HOST=192.168.58.2
-   set MICROCONTROLLER_PORT=COM3   # replace with the actual COM port on the middleman
-   # optional:
-   # set LISTEN_HOST=0.0.0.0
-   # set LISTEN_PORT=20003
-   # set SERIAL_BAUDRATE=9600
-   # set SERIAL_TIMEOUT=1
-   python middleman_proxy.py
-   ```
-4. Keep port 20004 reserved for the SDK realtime channel; the proxy only serves XML-RPC on 20003.
-
-### Configure the client (this repository)
-- Keep your existing robot proxy/tunnel pointing to the middleman��s `20003` (or to the proxy port you choose).
-- Enable RPC-based pressure/gripper:
-  - Set `PRESSURE_VIA_RPC=1`
-  - Optional: `PRESSURE_RPC_PORT=20003` if the proxy listens on a non-default port
-- No local COM port is needed on the client when RPC mode is enabled.
-
-### Environment variables summary
-- On middleman:
-  - `ROBOT_UPSTREAM_HOST` (robot controller IP, default `192.168.58.2`)
-  - `MICROCONTROLLER_PORT` (e.g., `COM3`)
-  - `LISTEN_HOST` (default `0.0.0.0`)
-  - `LISTEN_PORT` (default `20003`)
-  - `SERIAL_BAUDRATE` (default `9600`)
-  - `SERIAL_TIMEOUT` (default `1`)
-- On client:
-  - `PRESSURE_VIA_RPC=1`
-  - `PRESSURE_RPC_PORT` (default `20003`)
-  - Existing robot proxy settings (`ROBOT_PROXY_ENABLED`, etc.) remain unchanged
-
-### Notes
-- If the middleman already runs another forwarder on `20003`, you can:
-  - Run `middleman_proxy.py` on another port (e.g., `20005` via `LISTEN_PORT`), and point your tunnel to that port, or
-  - Chain the proxy accordingly and keep the client `PRESSURE_RPC_PORT` in sync.
-- Serial mode is still available as a fallback; `MicrocontrollerCommunication` will auto-discover local COM ports when RPC is disabled.
+## License
+- See repository license if provided by the project owner. If missing, treat as “all rights reserved” by default.

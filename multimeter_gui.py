@@ -494,35 +494,8 @@ if __name__ == '__main__':
         # Run diagnostics instead of GUI
         import socket_diagnostics as diag
         ok = diag.run()
-        # Import movement test functions right under diagnostics
-        try:
-            from movement_test import movement_main
-        except Exception:
-            movement_main = None
-        # Prompt for 6 joint values and run movement test accordingly
-        try:
-            line = input("Enter 6 joint angles (deg) separated by spaces (e.g., 0 -45 30 0 60 0). Press Enter to skip: ").strip()
-        except (EOFError, KeyboardInterrupt):
-            line = ""
-        # Import movement command parser right after prompting
-        try:
-            from movement_command_parser import parse_and_execute_commands
-        except Exception:
-            parse_and_execute_commands = None
-        if movement_main and line:
-            parts = line.split()
-            if len(parts) >= 6:
-                move_args = parts[:6]
-                # Execute movement test with provided angles
-                movement_main(move_args)
-
-            else:
-                print(f"Expected 6 numbers, got {len(parts)}. Exiting.")
-                sys.exit(2)
-
-        time.sleep(3)
-        print("Running movement command parser on 'test.txt'...")
-        parse_and_execute_commands("test.txt")
+        # Movement testing disabled: skip prompting for joint angles and command parser execution
+        print("Headless mode: movement testing is disabled. Exiting.")
         sys.exit(0)
     else:
         QtCore.QCoreApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling)

@@ -53,9 +53,15 @@ CSV_FILE_PREFIX: str = "data_monitor_"
 CSV_HEADER = [
     "j1", "j2", "j3", "j4", "j5", "j6",
     "x", "y", "z", "rx", "ry", "rz",
-    "pressure"
+    "pressure", "discarded_flag"
 ]
 
+# Filtering thresholds
+MAX_JOINT_ABS = 1000.0          # absolute sanity cap (deg)
+MAX_JOINT_DELTA = 20.0          # max per-cycle change allowed (deg) typical for 5Hz sampling
+MAX_CART_ABS = 1e6              # absolute cap for pose values
+MAX_CART_DELTA_POS = 50.0       # mm change threshold per cycle (adjust as needed)
+MAX_CART_DELTA_ORI = 10.0       # deg/radian orientation change threshold per cycle
 
 # =============================================================================
 # Utility Functions
@@ -117,6 +123,53 @@ def _prepare_csv_writer() -> Tuple[Optional[csv.writer], Optional[object]]:
         return None, None
 
 
+def _filter_sequence(current: Optional[List[float]], prev: Optional[List[float]],
+                     max_abs: float, max_delta: float) -> Tuple[Optional[List[float]], bool]:
+    """Filter a sequence (joints or orientation) based on absolute and delta thresholds.
+    Returns (accepted_sequence_or_prev, discarded_flag)."""
+    if current is None:
+        return prev, True  # discard -> use previous
+    if prev is None:
+        # First sample: just validate absolute values
+        if any(abs(v) > max_abs or v != v for v in current):
+            return None, True
+        return current, False
+    if len(current) != len(prev):
+        return prev, True
+    # Validate each value
+    for i, v in enumerate(current):
+        if not isinstance(v, (int, float)) or v != v or abs(v) > max_abs:
+            return prev, True
+        if abs(v - prev[i]) > max_delta:
+            return prev, True
+    return current, False
+
+
+def _filter_cartesian(current: Optional[List[float]], prev: Optional[List[float]]) -> Tuple[Optional[List[float]], bool]:
+    """Filter cartesian pose: first 3 are positions (mm), last 3 orientation (deg/rad)."""
+    if current is None:
+        return prev, True
+    if prev is None:
+        # First sample absolute sanity check
+        if any(abs(v) > MAX_CART_ABS or v != v for v in current):
+            return None, True
+        return current, False
+    if len(current) != len(prev):
+        return prev, True
+    # Position and orientation separate thresholds
+    for i, v in enumerate(current):
+        if not isinstance(v, (int, float)) or v != v or abs(v) > MAX_CART_ABS:
+            return prev, True
+        delta = abs(v - prev[i])
+        if i < 3:
+            if delta > MAX_CART_DELTA_POS:
+                return prev, True
+        else:
+            if delta > MAX_CART_DELTA_ORI:
+                return prev, True
+    return current, False
+
+
 # =============================================================================
 # Main Monitor Loop
 # =============================================================================
@@ -149,45 +202,60 @@ def main() -> int:
 
     print(f"Monitor frequency: {READ_FREQUENCY_HZ:.2f} Hz\nPress Ctrl+C to stop.\n")
 
+    prev_joints: Optional[List[float]] = None
+    prev_cart: Optional[List[float]] = None
+    last_line_len = 0
+
     try:
         while True:
             ts = datetime.now().strftime(PRINT_DATETIME_FORMAT)
 
-            joints, cart, connected = _safe_get_robot_state(rc)
+            joints_raw, cart_raw, connected = _safe_get_robot_state(rc)
             pressure = _safe_get_pressure(mc)
+
+            # Filter sequences for consistency
+            joints_filtered, joints_discarded = _filter_sequence(joints_raw, prev_joints, MAX_JOINT_ABS, MAX_JOINT_DELTA)
+            cart_filtered, cart_discarded = _filter_cartesian(cart_raw, prev_cart)
+
+            if not joints_discarded:
+                prev_joints = joints_filtered
+            if not cart_discarded:
+                prev_cart = cart_filtered
 
             line = (
                 f"[{ts}] robot_connected={connected} "
-                f"joints={_fmt_list(joints, 2)} "
-                f"tcp={_fmt_list(cart, 3)} "
-                f"pressure={(f'{pressure:.2f}' if pressure is not None else 'None')}"
+                f"joints={_fmt_list(joints_filtered, 2)} "
+                f"tcp={_fmt_list(cart_filtered, 3)} "
+                f"pressure={(f'{pressure:.2f}' if pressure is not None else 'None')} "
+                f"discarded_joints={joints_discarded} discarded_tcp={cart_discarded}"
             )
 
             if SINGLE_LINE_OUTPUT:
-                # Overwrite the same line for a live-updating display
-                sys.stdout.write("\r" + line + " " * max(0, 120 - len(line)))
+                clear_len = max(last_line_len - len(line), 0)
+                sys.stdout.write("\r" + line + " " * clear_len)
                 sys.stdout.flush()
+                last_line_len = len(line)
             else:
                 print(line)
 
-            # CSV row: j1..j6, x, y, z, rx, ry, rz, pressure
+            # CSV row: j1..j6, x, y, z, rx, ry, rz, pressure, discarded_flag(any)
             if csv_writer is not None:
-                j_vals = ["", "", "", "", "", ""]
-                if joints is not None and len(joints) >= 6:
+                j_vals = [""] * 6
+                if joints_filtered is not None and len(joints_filtered) >= 6:
                     try:
-                        j_vals = [f"{joints[i]:.2f}" for i in range(6)]
+                        j_vals = [f"{joints_filtered[i]:.2f}" if joints_filtered[i] is not None else "" for i in range(6)]
                     except Exception:
                         pass
-                coord_vals = ["", "", "", "", "", ""]
-                if cart is not None and len(cart) >= 6:
+                coord_vals = [""] * 6
+                if cart_filtered is not None and len(cart_filtered) >= 6:
                     try:
-                        coord_vals = [f"{cart[i]:.3f}" for i in range(6)]
+                        coord_vals = [f"{cart_filtered[i]:.3f}" if cart_filtered[i] is not None else "" for i in range(6)]
                     except Exception:
                         pass
                 pressure_str = f"{pressure:.2f}" if pressure is not None else ""
+                discarded_flag = "1" if (joints_discarded or cart_discarded) else "0"
                 try:
-                    csv_writer.writerow([*j_vals, *coord_vals, pressure_str])
-                    # Flush to ensure data is written in near-realtime
+                    csv_writer.writerow([*j_vals, *coord_vals, pressure_str, discarded_flag])
                     csv_file.flush()  # type: ignore[union-attr]
                 except Exception as e:
                     # Non-fatal; continue monitoring

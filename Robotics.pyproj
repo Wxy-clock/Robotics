@@ -48,6 +48,8 @@
     <Folder Include="fairino_related\" />
     <Folder Include="fairino_related\example\" />
     <Folder Include="fairino_related\fairino\" />
+    <Folder Include="logs\" />
+    <Folder Include="logs\monitor\" />
     <Folder Include="ui\" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />

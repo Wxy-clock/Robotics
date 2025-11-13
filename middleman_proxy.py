@@ -3,7 +3,7 @@
 """
 Middleman XML-RPC proxy with serial-bridge for pressure/gripper.
 
-Listens on LISTEN_HOST:LISTEN_PORT (default 0.0.0.0:20003).
+Listens on LISTEN_HOST:LISTEN_PORT (default 0.0.0.0:20005).
 Forwards unknown robot methods to upstream robot at ROBOT_UPSTREAM_HOST:20003.
 Implements custom methods:
 - ReadPressure() -> float
@@ -16,12 +16,12 @@ Run:
   python middleman_proxy.py
 
 Notes:
-- Keep 20004 for SDK realtime channel; this proxy only handles XML-RPC (20003).
-- If you already have an existing forwarder on 20003, run this on 20005 and
-  adjust your tunnel accordingly, or chain upstream.
+- Keep 20004 for SDK realtime channel; this proxy only handles XML-RPC (default 20005).
+- If you already have an existing forwarder on 20003, this default avoids conflicts.
 """
 
 import time
+import re
 import xmlrpc.client
 from xmlrpc.server import SimpleXMLRPCServer
 import serial
@@ -39,17 +39,74 @@ class ProxyConfig:
     """Static configuration for the middleman proxy."""
     upstream_host: str = "192.168.58.2"  # robot controller IP/hostname
     listen_host: str = "0.0.0.0"
-    listen_port: int = 20003
-    serial_port: Optional[str] = None     # e.g. "COM3"; None = auto-pick first available
+    listen_port: int = 20005             # changed default to 20005 to avoid 20003 conflicts
+    serial_port: Optional[str] = None     # e.g. "COM3"; None = auto-pick best available
     serial_baudrate: int = 9600
     serial_timeout: float = 1.0
 
 
-def _auto_serial_port(preferred: Optional[str]) -> Optional[str]:
+def _ports_sorted():
+    """Return available ports sorted by likelihood (USB adapters first, then non-COM1)."""
+    ports = list(list_ports.comports())
+    keywords = [
+        "USB", "CH340", "CP210", "FTDI", "Arduino", "Silicon Labs", "Prolific", "USB-SERIAL"
+    ]
+
+    def score(p):
+        desc = f"{p.description or ''} {p.manufacturer or ''}"
+        is_usb = 1 if any(k in desc for k in keywords) else 0
+        non_com1 = 1 if (p.device.upper() != "COM1") else 0
+        return (is_usb, non_com1)
+
+    return sorted(ports, key=score, reverse=True)
+
+
+def _probe_pressure_on_port(device: str, baud: int, timeout: float) -> Optional[float]:
+    """Try to read a single pressure value from a specific serial port.
+    Return float on success; otherwise None.
+    """
+    try:
+        ser = serial.Serial(device, baudrate=baud, timeout=timeout)
+        try:
+            ser.reset_input_buffer(); ser.reset_output_buffer()
+            ser.write(bytearray(CMD_REQUEST_PRESSURE))
+            t0 = time.time(); data = b""
+            # Read until newline or timeout; also accept raw bytes and parse a float
+            while time.time() - t0 < timeout:
+                if ser.in_waiting:
+                    data += ser.read(ser.in_waiting)
+                    if b"\n" in data or b"\r" in data:
+                        break
+            txt = data.decode("utf-8", "ignore")
+            m = re.search(r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?", txt)
+            if m:
+                return float(m.group(0))
+            return None
+        finally:
+            try:
+                ser.close()
+            except Exception:
+                pass
+    except Exception:
+        return None
+
+
+def _auto_serial_port(preferred: Optional[str], baud: int, timeout: float) -> Optional[str]:
+    """Choose the most likely serial port. If preferred is valid, use it; otherwise
+    scan ports and pick one that returns a numeric pressure. Fall back to best-looking port.
+    """
     if preferred:
-        return preferred
-    ports = [p.device for p in list_ports.comports()]
-    return ports[0] if ports else None
+        val = _probe_pressure_on_port(preferred, baud, timeout)
+        if val is not None:
+            return preferred
+    # Try sorted candidates and pick the first port that yields a numeric value
+    for p in _ports_sorted():
+        val = _probe_pressure_on_port(p.device, baud, timeout)
+        if val is not None:
+            return p.device
+    # No port produced a value; return the most likely device if any
+    candidates = [p.device for p in _ports_sorted()]
+    return candidates[0] if candidates else None
 
 
 class RobotProxy:
@@ -61,7 +118,7 @@ class RobotProxy:
         self.ser = serial.Serial()
         self.ser.baudrate = cfg.serial_baudrate
         self.ser.timeout = cfg.serial_timeout
-        sel = _auto_serial_port(cfg.serial_port)
+        sel = _auto_serial_port(cfg.serial_port, cfg.serial_baudrate, cfg.serial_timeout)
         if sel:
             self.ser.port = sel
         self._serial_enabled = bool(sel)
@@ -70,9 +127,27 @@ class RobotProxy:
             f"serial={sel or '<none>'} baud={cfg.serial_baudrate} timeout={cfg.serial_timeout}"
         )
 
+    def _ensure_serial_ready(self) -> bool:
+        """Ensure a usable serial port is assigned; try to auto-pick if missing."""
+        if self._serial_enabled and getattr(self.ser, "port", None):
+            return True
+        sel = _auto_serial_port(self.cfg.serial_port, self.cfg.serial_baudrate, self.cfg.serial_timeout)
+        if not sel:
+            self._serial_enabled = False
+            return False
+        try:
+            if self.ser.is_open:
+                self.ser.close()
+        except Exception:
+            pass
+        self.ser.port = sel
+        self._serial_enabled = True
+        print(f"[Proxy] Serial port set to {sel}")
+        return True
+
     # Custom methods exposed
     def ReadPressure(self) -> float:
-        if not self._serial_enabled:
+        if not self._ensure_serial_ready():
             return float("nan")
         try:
             if not self.ser.is_open:
@@ -80,17 +155,21 @@ class RobotProxy:
             self.ser.reset_input_buffer(); self.ser.reset_output_buffer()
             self.ser.write(bytearray(CMD_REQUEST_PRESSURE))
             t0 = time.time(); data = b""
-            while time.time() - t0 < 1.0:
+            while time.time() - t0 < self.cfg.serial_timeout:
                 if self.ser.in_waiting:
-                    data = self.ser.readline()
-                    break
-            self.ser.close()
+                    data += self.ser.read(self.ser.in_waiting)
+                    if b"\n" in data or b"\r" in data:
+                        break
+            try:
+                if self.ser.is_open:
+                    self.ser.close()
+            except Exception:
+                pass
             if not data:
                 return float("nan")
-            try:
-                return float(data.decode("utf-8").strip())
-            except Exception:
-                return float("nan")
+            txt = data.decode("utf-8", "ignore")
+            m = re.search(r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?", txt)
+            return float(m.group(0)) if m else float("nan")
         except Exception:
             try:
                 if self.ser.is_open:
@@ -100,7 +179,7 @@ class RobotProxy:
             return float("nan")
 
     def Gripper(self, close: bool) -> int:
-        if not self._serial_enabled:
+        if not self._ensure_serial_ready():
             return -3
         try:
             if not self.ser.is_open:
@@ -109,11 +188,15 @@ class RobotProxy:
             cmd = CMD_GRIP_CLOSE if close else CMD_GRIP_OPEN
             self.ser.write(bytearray(cmd))
             t0 = time.time()
-            while time.time() - t0 < 1.0:
+            while time.time() - t0 < self.cfg.serial_timeout:
                 if self.ser.in_waiting:
                     _ = self.ser.readline()
                     break
-            self.ser.close()
+            try:
+                if self.ser.is_open:
+                    self.ser.close()
+            except Exception:
+                pass
             return 1
         except Exception:
             try:

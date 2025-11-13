@@ -51,6 +51,10 @@ from typing import List, Any
 # Avoid auto-initialization on import; let this script control connections
 os.environ.setdefault('ROBOT_SKIP_AUTO_INIT', '1')
 
+# TESTING TOGGLE: set to False to disable actual robot motion when parsing commands.
+# This allows running scripts for testing/logging without moving the robot.
+MOVEMENT_ENABLED: bool = False
+
 from robot_controller import (
     RobotController,
     ProbeHandler,
@@ -272,6 +276,10 @@ def parse_and_execute_commands(file_path: str, *, echo: bool = True) -> int:
                 except Exception:
                     # If FK or validation fails, stop and re-raise below
                     raise
+                # TESTING TOGGLE: skip actual motion when MOVEMENT_ENABLED is False
+                if not MOVEMENT_ENABLED:
+                    log("move_to_joint_position SKIPPED (movement disabled for testing)")
+                    return True
                 getattr(r, fname)(tool, vel, joints)
                 return True
             if fname == "move_to_cartesian_position":
@@ -279,6 +287,10 @@ def parse_and_execute_commands(file_path: str, *, echo: bool = True) -> int:
                 active_tool = tool
                 # Safety validation before executing the movement
                 validate_cartesian_move(tool, pose)
+                # TESTING TOGGLE: skip actual motion when MOVEMENT_ENABLED is False
+                if not MOVEMENT_ENABLED:
+                    log("move_to_cartesian_position SKIPPED (movement disabled for testing)")
+                    return True
                 getattr(r, fname)(tool, vel, pose)
                 return True
             if fname == "move_linear":
@@ -287,6 +299,10 @@ def parse_and_execute_commands(file_path: str, *, echo: bool = True) -> int:
                 # Safety validation before executing the movement
                 validate_cartesian_move(tool, pose)
                 br = float(args[8]) if len(args) >= 9 else -1.0
+                # TESTING TOGGLE: skip actual motion when MOVEMENT_ENABLED is False
+                if not MOVEMENT_ENABLED:
+                    log("move_linear SKIPPED (movement disabled for testing)")
+                    return True
                 getattr(r, fname)(tool, vel, pose, br)
                 return True
             method = getattr(r, fname)

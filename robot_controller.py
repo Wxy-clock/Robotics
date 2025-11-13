@@ -424,20 +424,35 @@ class MicrocontrollerCommunication:
         self.selected_port = None  # track selected COM port
         self._rpc = None
         self._mode = "serial"
-        # Toggle RPC mode via environment; default to serial
+
+        # Allow explicit RPC host/port for pressure/gripper via env (to target middleman)
+        # Priority:
+        # 1) PRESSURE_RPC_HOST if provided; otherwise resolve_robot_host(ROBOT_IP_ADDRESS)
+        # 2) PRESSURE_RPC_PORT env; else if proxy enabled default 20005; otherwise 20003
+        rpc_host = os.environ.get("PRESSURE_RPC_HOST") or resolve_robot_host(ROBOT_IP_ADDRESS)
+        rpc_port = int(os.environ.get("PRESSURE_RPC_PORT") or ("20005" if is_proxy_enabled() else "20003"))
+
+        # Explicit environment enables RPC mode
         if os.environ.get("PRESSURE_VIA_RPC", "0") == "1":
-            self._mode = "rpc"
-            host = resolve_robot_host(ROBOT_IP_ADDRESS)
-            rpc_port = int(os.environ.get("PRESSURE_RPC_PORT", "20003"))
             try:
-                self._rpc = xmlrpc.client.ServerProxy(f"http://{host}:{rpc_port}/RPC2", allow_none=True)
-                print(f"Microcontroller RPC mode via {host}:{rpc_port}")
+                self._rpc = xmlrpc.client.ServerProxy(f"http://{rpc_host}:{rpc_port}/RPC2", allow_none=True)
+                self._mode = "rpc"
+                print(f"Microcontroller RPC mode via {rpc_host}:{rpc_port}")
             except Exception as e:
                 print(f"Failed to initialize microcontroller RPC client: {e}")
                 self._rpc = None
                 self._mode = "serial"
+
+        # If not in RPC mode, initialize serial; if unavailable but proxy is enabled, fallback to RPC
         if self._mode == "serial":
             self._initialize_serial_connection()
+            if self.selected_port is None and is_proxy_enabled():
+                try:
+                    self._rpc = xmlrpc.client.ServerProxy(f"http://{rpc_host}:{rpc_port}/RPC2", allow_none=True)
+                    self._mode = "rpc"
+                    print(f"Microcontroller RPC fallback via {rpc_host}:{rpc_port} (serial unavailable)")
+                except Exception as e:
+                    print(f"Fallback to RPC failed: {e}")
     
     def _resolve_serial_port(self) -> Optional[str]:
         """Resolve the serial port to use with environment override and auto-discovery.
@@ -644,7 +659,25 @@ class MicrocontrollerCommunication:
                 print("Turntable rotation failed: serial port unavailable")
                 return
             self.serial_connection.reset_input_buffer()
-            self.serial_connection.reset_output_buff
+            self.serial_connection.reset_output_buffer()
+
+            self.serial_connection.write(bytearray(command))
+
+            # Optionally wait for ACK
+            timeout_start = time.time()
+            while (time.time() - timeout_start) < 1:
+                if self.serial_connection.in_waiting > 0:
+                    _ = self.serial_connection.readline()
+                    break
+        except Exception as e:
+            print(f"Turntable rotation failed: {e}")
+        finally:
+            try:
+                if self.serial_connection and self.serial_connection.is_open:
+                    self.serial_connection.close()
+            except Exception:
+                pass
+
 
 
 
