@@ -31,6 +31,7 @@ import os
 
 # Third-party imports
 import numpy as np
+from serial.tools import list_ports  # added for serial port discovery
 
 # Local imports
 from system_config import *
@@ -87,6 +88,7 @@ class RobotController:
         """Initialize robot controller and establish connections."""
         self.robot = None
         self.is_connected = False
+        self.current_host = None  # track current endpoint for diagnostics
         self._initialize_robot_connection()
         # DB-dependent position loading removed
     
@@ -94,13 +96,20 @@ class RobotController:
         """Initialize connection to robot controller."""
         try:
             host = resolve_robot_host(ROBOT_IP_ADDRESS)
+            self.current_host = host
             if is_proxy_enabled():
                 print(f"[RobotController] Proxy Enabled = YES, Proxy Endpoint = {get_proxy_endpoint()}")
             else:
                 print("[RobotController] Proxy Enabled = NO")
             self.robot = Robot.RPC(host)
-            self.is_connected = True
-            print(f"Robot connection established successfully to {host}")
+            # light handshake to verify connectivity
+            try:
+                _ = self.robot.GetActualJointPosDegree()[1]
+                self.is_connected = True
+                print(f"Robot connection established successfully to {host}")
+            except Exception as ping_err:
+                self.is_connected = False
+                print(f"Robot connection handshake failed to {host}: {ping_err}")
         except Exception as e:
             print(f"Failed to connect to robot: {e}")
             self.is_connected = False
@@ -411,21 +420,86 @@ class MicrocontrollerCommunication:
     def __init__(self):
         """Initialize microcontroller communication."""
         self.serial_connection = None
+        self.selected_port = None  # track selected COM port
         self._initialize_serial_connection()
     
+    def _resolve_serial_port(self) -> Optional[str]:
+        """Resolve the serial port to use with environment override and auto-discovery.
+        Returns a port string like 'COM3' or None if not found.
+        """
+        # env override takes precedence
+        env_port = os.environ.get("MICROCONTROLLER_PORT") or os.environ.get("SERIAL_PORT")
+        configured = env_port or SERIAL_PORT
+        available = list(list_ports.comports())
+        available_names = {p.device for p in available}
+
+        # if configured exists and available, use it
+        if configured and configured in available_names:
+            return configured
+
+        # try simple auto-discovery
+        if not available:
+            return None
+
+        # If only one port, choose it
+        if len(available) == 1:
+            return available[0].device
+
+        # Prefer common USB-UART adapters by description
+        preferred_keywords = ["USB", "CH340", "CP210", "FTDI", "Arduino", "Silicon Labs", "Prolific"]
+        for p in available:
+            desc = (p.description or "") + " " + (p.manufacturer or "")
+            if any(k in desc for k in preferred_keywords):
+                return p.device
+
+        # Fallback: None to force user configuration
+        return None
+
     def _initialize_serial_connection(self):
         """Initialize serial connection to microcontroller."""
         try:
+            port = self._resolve_serial_port()
             self.serial_connection = serial.Serial()
             self.serial_connection.baudrate = SERIAL_BAUDRATE
             self.serial_connection.bytesize = 8
             self.serial_connection.parity = 'N'
             self.serial_connection.stopbits = 1
             self.serial_connection.timeout = SERIAL_TIMEOUT
-            self.serial_connection.port = SERIAL_PORT
-            print("Microcontroller communication initialized")
+            if port:
+                self.serial_connection.port = port
+                self.selected_port = port
+                print(f"Microcontroller communication initialized on {port}")
+            else:
+                # keep unassigned, print guidance
+                self.selected_port = None
+                ports_list = ", ".join(sorted({p.device for p in list_ports.comports()})) or "<none>"
+                print(
+                    "Microcontroller port unresolved. Set MICROCONTROLLER_PORT env var or update system_config.SERIAL_PORT. "
+                    f"Detected ports: {ports_list}"
+                )
         except Exception as e:
             print(f"Failed to initialize microcontroller communication: {e}")
+    
+    def _ensure_open(self) -> bool:
+        """Ensure the serial port is assigned and open; return True if ready."""
+        try:
+            if self.serial_connection is None:
+                return False
+            if not getattr(self.serial_connection, "port", None):
+                # retry resolve in case device plugged in later
+                port = self._resolve_serial_port()
+                if port:
+                    self.serial_connection.port = port
+                    self.selected_port = port
+                    print(f"Microcontroller port set to {port}")
+                else:
+                    return False
+            if not self.serial_connection.is_open:
+                self.serial_connection.open()
+            return True
+        except Exception as e:
+            print(f"Serial open failed: {e}")
+            return False
     
     def send_gripper_command(self, close_gripper: bool) -> int:
         """
@@ -438,9 +512,11 @@ class MicrocontrollerCommunication:
             Status code (1 for success, negative for error)
         """
         try:
-            self.serial_connection.open()
-            self.serial_connection.flushInput()
-            self.serial_connection.flushOutput()
+            if not self._ensure_open():
+                print("Gripper command failed: serial port unavailable")
+                return -3
+            self.serial_connection.reset_input_buffer()
+            self.serial_connection.reset_output_buffer()
             
             command = CMD_GRIP_CLOSE if close_gripper else CMD_GRIP_OPEN
             timeout_start = time.time()
@@ -458,6 +534,11 @@ class MicrocontrollerCommunication:
             
         except Exception as e:
             print(f"Gripper command failed: {e}")
+            try:
+                if self.serial_connection and self.serial_connection.is_open:
+                    self.serial_connection.close()
+            except Exception:
+                pass
             return -3
     
     def read_pressure_value(self) -> float:
@@ -468,9 +549,11 @@ class MicrocontrollerCommunication:
             Pressure value in appropriate units, or -3 for communication error
         """
         try:
-            self.serial_connection.open()
-            self.serial_connection.flushInput()
-            self.serial_connection.flushOutput()
+            if not self._ensure_open():
+                print("Pressure reading failed: serial port unavailable")
+                return -3
+            self.serial_connection.reset_input_buffer()
+            self.serial_connection.reset_output_buffer()
             
             timeout_start = time.time()
             self.serial_connection.write(bytearray(CMD_REQUEST_PRESSURE))
@@ -480,7 +563,7 @@ class MicrocontrollerCommunication:
                 if self.serial_connection.in_waiting > 0:
                     response = self.serial_connection.readline()
                     try:
-                        pressure_reading = response.decode(encoding='utf-8')
+                        pressure_reading = response.decode(encoding='utf-8').strip()
                     except Exception:
                         pressure_reading = ''
                     break
@@ -495,6 +578,11 @@ class MicrocontrollerCommunication:
             
         except Exception as e:
             print(f"Pressure reading failed: {e}")
+            try:
+                if self.serial_connection and self.serial_connection.is_open:
+                    self.serial_connection.close()
+            except Exception:
+                pass
             return -3
     
     def send_turntable_rotation(self, rotation_steps: int):
@@ -512,9 +600,11 @@ class MicrocontrollerCommunication:
             command = CMD_TURNTABLE_ROTATE.copy()
             command[6] = rotation_steps
             
-            self.serial_connection.open()
-            self.serial_connection.flushInput()
-            self.serial_connection.flushOutput()
+            if not self._ensure_open():
+                print("Turntable rotation failed: serial port unavailable")
+                return
+            self.serial_connection.reset_input_buffer()
+            self.serial_connection.reset_output_buffer()
             
             self.serial_connection.write(bytearray(command))
             _ = self.serial_connection.readline()
@@ -526,9 +616,11 @@ class MicrocontrollerCommunication:
     def send_voice_alert(self):
         """Send voice alert command."""
         try:
-            self.serial_connection.open()
-            self.serial_connection.flushInput()
-            self.serial_connection.flushOutput()
+            if not self._ensure_open():
+                print("Voice alert failed: serial port unavailable")
+                return
+            self.serial_connection.reset_input_buffer()
+            self.serial_connection.reset_output_buffer()
             
             self.serial_connection.write(bytearray(CMD_VOICE_ALERT))
             self.serial_connection.close()

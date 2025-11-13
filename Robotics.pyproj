@@ -26,6 +26,7 @@
   <!-- Include all Python source files recursively, excluding common environment/cache folders -->
   <ItemGroup>
     <Compile Include="**\*.py" Exclude="**\__pycache__\**;**\.git\**;**\.vs\**;**\env\**;**\venv\**;**\.venv\**;**\build\**;**\dist\**;**\.mypy_cache\**;**\.pytest_cache\**;**\.ipynb_checkpoints\**" />
+    <Compile Include="data_monitor.py" />
     <Compile Include="movement_command_parser.py" />
     <Compile Include="movement_safety_config.py" />
     <Compile Include="movement_test.py" />

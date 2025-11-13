@@ -20,10 +20,17 @@ Notes:
 import sys
 import argparse
 import time
+import threading
+from datetime import datetime
 
-from robot_controller import RobotController
+from robot_controller import RobotController, MicrocontrollerCommunication
 from proxy_connection import resolve_robot_host, is_proxy_enabled, get_proxy_endpoint
 from system_config import ROBOT_IP_ADDRESS
+
+# Pressure-based E-Stop configuration
+PRESSURE_ESTOP_THRESHOLD_N: float = 5.0  # Trigger E-stop if pressure exceeds this (N)
+PRESSURE_POLL_HZ: float = 20.0           # Polling frequency for pressure monitoring
+PRESSURE_POLL_INTERVAL: float = 1.0 / PRESSURE_POLL_HZ
 
 
 def parse_args(argv):
@@ -59,11 +66,48 @@ def movement_main(argv=None):
     print(f"Tool: {args.tool}, Velocity: {args.velocity}%")
     joint_angles = [args.j1, args.j2, args.j3, args.j4, args.j5, args.j6]
     print(f"Joint angles (deg): {joint_angles}")
+    print(f"E-Stop: threshold={PRESSURE_ESTOP_THRESHOLD_N} N, poll={PRESSURE_POLL_HZ} Hz")
 
     rc = RobotController()
     if not getattr(rc, "is_connected", False):
         print("ERROR: Robot not connected.")
         return 2
+
+    # Initialize microcontroller for pressure sensing
+    mc = MicrocontrollerCommunication()
+
+    # Shared state for E-stop
+    stop_event = threading.Event()
+    estop_info = {"triggered": False, "pressure": None, "timestamp": None}
+
+    def _pressure_monitor_loop():
+        # drain first read (optional) to stabilize
+        try:
+            _ = mc.read_pressure_value()
+        except Exception:
+            pass
+        while not stop_event.is_set():
+            try:
+                val = mc.read_pressure_value()
+            except Exception:
+                val = None
+            if isinstance(val, (int, float)) and val != -3 and val is not None:
+                if val > PRESSURE_ESTOP_THRESHOLD_N:
+                    # Trigger robot stop immediately
+                    estop_info["triggered"] = True
+                    estop_info["pressure"] = float(val)
+                    estop_info["timestamp"] = datetime.now().strftime("%H:%M:%S")
+                    try:
+                        rc.stop_robot_movement()
+                    except Exception:
+                        pass
+                    # remain running a little longer, then exit
+                    break
+            # Sleep until next poll
+            time.sleep(PRESSURE_POLL_INTERVAL)
+
+    monitor_thread = threading.Thread(target=_pressure_monitor_loop, name="pressure-monitor", daemon=True)
+    monitor_thread.start()
 
     try:
         # Execute MoveJ
@@ -75,12 +119,25 @@ def movement_main(argv=None):
         joints, pose = rc.get_current_position()
         print("Current joints (deg):", [round(v, 3) for v in joints])
         print("Current TCP pose:", [round(v, 3) for v in pose])
+
+        if estop_info["triggered"]:
+            print(f"E-STOP TRIGGERED at {estop_info['timestamp']} with pressure={estop_info['pressure']:.2f} N")
+            return 3
         print("Done.")
         return 0
     except Exception as e:
+        if estop_info["triggered"]:
+            print(f"E-STOP TRIGGERED during motion with pressure={estop_info['pressure']:.2f} N")
+            return 3
         print("ERROR during movement:", e)
         return 1
-
+    finally:
+        # Signal monitor to stop and wait briefly
+        stop_event.set()
+        try:
+            monitor_thread.join(timeout=1.0)
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":
