@@ -32,6 +32,7 @@ import os
 # Third-party imports
 import numpy as np
 from serial.tools import list_ports  # added for serial port discovery
+import xmlrpc.client  # added for RPC pressure/gripper mode
 
 # Local imports
 from system_config import *
@@ -421,7 +422,22 @@ class MicrocontrollerCommunication:
         """Initialize microcontroller communication."""
         self.serial_connection = None
         self.selected_port = None  # track selected COM port
-        self._initialize_serial_connection()
+        self._rpc = None
+        self._mode = "serial"
+        # Toggle RPC mode via environment; default to serial
+        if os.environ.get("PRESSURE_VIA_RPC", "0") == "1":
+            self._mode = "rpc"
+            host = resolve_robot_host(ROBOT_IP_ADDRESS)
+            rpc_port = int(os.environ.get("PRESSURE_RPC_PORT", "20003"))
+            try:
+                self._rpc = xmlrpc.client.ServerProxy(f"http://{host}:{rpc_port}/RPC2", allow_none=True)
+                print(f"Microcontroller RPC mode via {host}:{rpc_port}")
+            except Exception as e:
+                print(f"Failed to initialize microcontroller RPC client: {e}")
+                self._rpc = None
+                self._mode = "serial"
+        if self._mode == "serial":
+            self._initialize_serial_connection()
     
     def _resolve_serial_port(self) -> Optional[str]:
         """Resolve the serial port to use with environment override and auto-discovery.
@@ -511,6 +527,16 @@ class MicrocontrollerCommunication:
         Returns:
             Status code (1 for success, negative for error)
         """
+        # RPC mode path
+        if self._mode == "rpc" and self._rpc is not None:
+            try:
+                result = self._rpc.Gripper(bool(close_gripper))  # type: ignore[attr-defined]
+                return int(result)
+            except Exception as e:
+                print(f"Gripper RPC failed: {e}")
+                return -3
+        
+        # Serial mode path
         try:
             if not self._ensure_open():
                 print("Gripper command failed: serial port unavailable")
@@ -548,6 +574,19 @@ class MicrocontrollerCommunication:
         Returns:
             Pressure value in appropriate units, or -3 for communication error
         """
+        # RPC mode path
+        if self._mode == "rpc" and self._rpc is not None:
+            try:
+                val = float(self._rpc.ReadPressure())  # type: ignore[attr-defined]
+                # if NaN from middleman, treat as error
+                if val != val:
+                    return -3
+                return round(val, 2)
+            except Exception as e:
+                print(f"Pressure RPC failed: {e}")
+                return -3
+        
+        # Serial mode path
         try:
             if not self._ensure_open():
                 print("Pressure reading failed: serial port unavailable")
@@ -596,6 +635,7 @@ class MicrocontrollerCommunication:
             time.sleep(2)
             return
         
+        # No RPC endpoint for turntable provided; keep serial-only
         try:
             command = CMD_TURNTABLE_ROTATE.copy()
             command[6] = rotation_steps
@@ -604,177 +644,7 @@ class MicrocontrollerCommunication:
                 print("Turntable rotation failed: serial port unavailable")
                 return
             self.serial_connection.reset_input_buffer()
-            self.serial_connection.reset_output_buffer()
-            
-            self.serial_connection.write(bytearray(command))
-            _ = self.serial_connection.readline()
-            self.serial_connection.close()
-            
-        except Exception as e:
-            print(f"Turntable rotation failed: {e}")
-    
-    def send_voice_alert(self):
-        """Send voice alert command."""
-        try:
-            if not self._ensure_open():
-                print("Voice alert failed: serial port unavailable")
-                return
-            self.serial_connection.reset_input_buffer()
-            self.serial_connection.reset_output_buffer()
-            
-            self.serial_connection.write(bytearray(CMD_VOICE_ALERT))
-            self.serial_connection.close()
-            
-        except Exception as e:
-            print(f"Voice alert failed: {e}")
-
-
-class PressureMonitor:
-    """
-    Monitor pressure sensors for feedback during operations.
-    
-    This class provides pressure monitoring capabilities for
-    precise probe insertion and multimeter plane detection.
-    """
-    
-    def __init__(self, microcontroller_comm: MicrocontrollerCommunication):
-        """
-        Initialize pressure monitor.
-        
-        Args:
-            microcontroller_comm: Microcontroller communication interface
-        """
-        self.microcontroller_comm = microcontroller_comm
-    
-    def monitor_probe_insertion(self, pressure_threshold: float) -> int:
-        """
-        Monitor probe insertion using pressure feedback.
-        
-        Args:
-            pressure_threshold: Pressure threshold for insertion detection
-            
-        Returns:
-            Status code (1 for success, negative for error)
-        """
-        global io_operation_interrupted
-        
-        # Clear pressure reading
-        _ = self.microcontroller_comm.read_pressure_value()
-        
-        while True:
-            max_pressure = self.microcontroller_comm.read_pressure_value()
-            
-            if max_pressure > pressure_threshold:
-                # Probe successfully inserted
-                robot_connection.ProgramStop()
-                robot_connection.WaitMs(2000)
-                _ = self.microcontroller_comm.read_pressure_value()
-                break
-            elif max_pressure == -3:
-                # Communication error
-                robot_connection.ProgramStop()
-                robot_connection.WaitMs(2000)
-                io_operation_interrupted = 1
-                break
-        
-        return 1 if max_pressure > pressure_threshold else -3
-    
-    def find_multimeter_plane(self) -> float:
-        """
-        Find multimeter plane height using pressure feedback.
-        
-        Returns:
-            Z-coordinate of multimeter plane
-        """
-        global io_operation_interrupted
-        
-        _ = self.microcontroller_comm.read_pressure_value()
-        
-        while True:
-            max_pressure = self.microcontroller_comm.read_pressure_value()
-            
-            if max_pressure > 0.03:
-                current_position = robot_connection.GetActualTCPPose(1)[1]
-                plane_z = current_position[2]
-                
-                robot_connection.ProgramStop()
-                robot_connection.WaitMs(2000)
-                _ = self.microcontroller_comm.read_pressure_value()
-                
-                return plane_z
-            elif max_pressure == -3:
-                robot_connection.ProgramStop()
-                robot_connection.WaitMs(2000)
-                io_operation_interrupted = 1
-                break
-        
-        return 0.0
-
-
-def test_communication_connection() -> int:
-    """
-    Test communication with all system components (DB removed).
-    
-    Returns:
-        1 for success, -1 for failure
-    """
-    global initialization_status, robot_connection
-    
-    initialization_status = 1
-    
-    # Test robot communication
-    try:
-        host = resolve_robot_host(ROBOT_IP_ADDRESS)
-        if is_proxy_enabled():
-            print(f"[CommTest] Proxy Enabled = YES, Proxy Endpoint = {get_proxy_endpoint()}")
-        else:
-            print("[CommTest] Proxy Enabled = NO")
-        robot_connection = Robot.RPC(host)
-        robot_connection.GetActualTCPPose(1)[1]
-        print(f'Robot communication successful via {host}')
-    except Exception as e:
-        print(f'Robot communication failed: {e}')
-        initialization_status = -1
-    
-    # Test microcontroller communication (best-effort)
-    try:
-        microcontroller_comm = MicrocontrollerCommunication()
-        pressure_value = microcontroller_comm.read_pressure_value()
-        if pressure_value == -3:
-            print('Pressure sensor communication error (non-fatal).')
-        else:
-            print('Pressure sensor read value:', pressure_value)
-        microcontroller_comm.send_gripper_command(True)
-        time.sleep(1)
-        microcontroller_comm.send_gripper_command(False)
-        print("Gripper communication attempted")
-    except Exception as e:
-        print(f'Microcontroller communication failed: {e}')
-        # Do not mark as fatal unless robot failed
-    
-    return initialization_status
-
-
-# Initialize global connections (DB removed)
-def initialize_system():
-    """Initialize system connections (robot only)."""
-    global robot_connection
-    
-    try:
-        host = resolve_robot_host(ROBOT_IP_ADDRESS)
-        if is_proxy_enabled():
-            print(f"[Init] Proxy Enabled = YES, Proxy Endpoint = {get_proxy_endpoint()}")
-        else:
-            print("[Init] Proxy Enabled = NO")
-        robot_connection = Robot.RPC(host)
-        print(f"System initialization completed (robot={host})")
-    except Exception as e:
-        print(f"System initialization failed: {e}")
-
-
-# Initialize on module import unless explicitly skipped (testing/diagnostics)
-if os.environ.get('ROBOT_SKIP_AUTO_INIT', '0') != '1':
-    initialize_system()
+            self.serial_connection.reset_output_buff
 
 
 

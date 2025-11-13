@@ -48,10 +48,60 @@ The application is built using Python and the PySide2 library for the graphical 
         *   **Turntable Control**: Manually control the turntable.
         *   **New Multimeter**: Register a new multimeter model by importing data from an Excel file.
 
-## Contribution
+---
 
-1.  Fork the repository.
-2.  Create a new branch (`git checkout -b feature/YourFeature`).
-3.  Commit your changes (`git commit -m 'Add some feature'`).
-4.  Push to the branch (`git push origin feature/YourFeature`).
-5.  Open a Pull Request.
+## New: Pressure/Gripper via Middleman Proxy (no local COM port required)
+
+When the microcontroller (pressure sensor / gripper) is physically attached to a middleman PC, you can bypass the local COM port by tunneling over the same XML-RPC channel as the robot.
+
+### What was added
+- `middleman_proxy.py`: an XML-RPC proxy to run on the middleman machine. It:
+  - Listens on a TCP port (default 20003)
+  - Forwards unknown robot methods to the real robot (`ROBOT_UPSTREAM_HOST:20003`)
+  - Implements two extra methods: `ReadPressure()` and `Gripper(close)` using the middleman¡¯s serial port
+- `MicrocontrollerCommunication` supports an RPC mode. Enable with env `PRESSURE_VIA_RPC=1` on the client side.
+
+### Deploy on the middleman
+1. Ensure Python 3 is installed and the microcontroller is physically connected (visible as a COM port in Device Manager).
+2. Install required package:
+   ```bash
+   pip install pyserial
+   ```
+3. Set environment and run the proxy (Windows PowerShell example):
+   ```powershell
+   set ROBOT_UPSTREAM_HOST=192.168.58.2
+   set MICROCONTROLLER_PORT=COM3   # replace with the actual COM port on the middleman
+   # optional:
+   # set LISTEN_HOST=0.0.0.0
+   # set LISTEN_PORT=20003
+   # set SERIAL_BAUDRATE=9600
+   # set SERIAL_TIMEOUT=1
+   python middleman_proxy.py
+   ```
+4. Keep port 20004 reserved for the SDK realtime channel; the proxy only serves XML-RPC on 20003.
+
+### Configure the client (this repository)
+- Keep your existing robot proxy/tunnel pointing to the middleman¡¯s `20003` (or to the proxy port you choose).
+- Enable RPC-based pressure/gripper:
+  - Set `PRESSURE_VIA_RPC=1`
+  - Optional: `PRESSURE_RPC_PORT=20003` if the proxy listens on a non-default port
+- No local COM port is needed on the client when RPC mode is enabled.
+
+### Environment variables summary
+- On middleman:
+  - `ROBOT_UPSTREAM_HOST` (robot controller IP, default `192.168.58.2`)
+  - `MICROCONTROLLER_PORT` (e.g., `COM3`)
+  - `LISTEN_HOST` (default `0.0.0.0`)
+  - `LISTEN_PORT` (default `20003`)
+  - `SERIAL_BAUDRATE` (default `9600`)
+  - `SERIAL_TIMEOUT` (default `1`)
+- On client:
+  - `PRESSURE_VIA_RPC=1`
+  - `PRESSURE_RPC_PORT` (default `20003`)
+  - Existing robot proxy settings (`ROBOT_PROXY_ENABLED`, etc.) remain unchanged
+
+### Notes
+- If the middleman already runs another forwarder on `20003`, you can:
+  - Run `middleman_proxy.py` on another port (e.g., `20005` via `LISTEN_PORT`), and point your tunnel to that port, or
+  - Chain the proxy accordingly and keep the client `PRESSURE_RPC_PORT` in sync.
+- Serial mode is still available as a fallback; `MicrocontrollerCommunication` will auto-discover local COM ports when RPC is disabled.
