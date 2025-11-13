@@ -189,6 +189,30 @@ class RobotController:
         joint_angles = self.robot.GetActualJointPosDegree()[1]
         
         return joint_angles, cartesian_position
+
+    def get_current_tcp_pose(self) -> List[float]:
+        """Return current TCP pose [x, y, z, rx, ry, rz] (same as cartesian from get_current_position)."""
+        if not self.is_connected:
+            raise RuntimeError("Robot not connected")
+        return self.robot.GetActualTCPPose(1)[1]
+
+    def get_current_base_pose(self) -> List[float]:
+        """Return current tool flange pose [x, y, z, rx, ry, rz] in base frame (useful as base-referenced pose)."""
+        if not self.is_connected:
+            raise RuntimeError("Robot not connected")
+        return self.robot.GetActualToolFlangePose(1)[1]
+
+    def get_current_wobj_offset(self) -> List[float]:
+        """Return current work object (WObj) offset [x, y, z, rx, ry, rz]."""
+        if not self.is_connected:
+            raise RuntimeError("Robot not connected")
+        return self.robot.GetWObjOffset(1)[1]
+
+    def get_current_wobj_id(self) -> int:
+        """Return current work object (WObj) id/index."""
+        if not self.is_connected:
+            raise RuntimeError("Robot not connected")
+        return int(self.robot.GetActualWObjNum(1)[1])
     
     def set_tool_coordinate_system(self, tool_number: int):
         """

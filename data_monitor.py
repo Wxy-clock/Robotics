@@ -7,6 +7,8 @@ A lightweight CLI tool that continuously reads and prints live data from the
 robotic system, including:
 - Joint angles (J1..J6, degrees)
 - Cartesian TCP pose (x, y, z, rx, ry, rz)
+- Base (flange) pose (x, y, z, rx, ry, rz)
+- World-object (WObj) offset (x, y, z, rx, ry, rz) and active WObj id
 - Pressure sensor reading (raw units per microcontroller output)
 
 This module is standalone and can be run in a separate terminal window to
@@ -49,11 +51,13 @@ SINGLE_LINE_OUTPUT: bool = True
 LOG_TO_CSV: bool = True
 CSV_OUTPUT_DIR: Path = Path("logs/monitor/")
 CSV_FILE_PREFIX: str = "data_monitor_"
-# Expanded coordinate into 6 columns: x, y, z, rx, ry, rz
+# Expanded coordinate into TCP, Base (flange), and WObj coordinates
 CSV_HEADER = [
     "j1", "j2", "j3", "j4", "j5", "j6",
-    "x", "y", "z", "rx", "ry", "rz",
-    "pressure", "discarded_flag"
+    "tcp_x", "tcp_y", "tcp_z", "tcp_rx", "tcp_ry", "tcp_rz",
+    "base_x", "base_y", "base_z", "base_rx", "base_ry", "base_rz",
+    "wobj_x", "wobj_y", "wobj_z", "wobj_rx", "wobj_ry", "wobj_rz", "wobj_id",
+    "pressure", "discarded_any", "discarded_joints", "discarded_tcp", "discarded_base", "discarded_wobj"
 ]
 
 # Filtering thresholds
@@ -77,8 +81,8 @@ def _fmt_list(vals: Optional[List[float]], precision: int = 2) -> str:
 
 
 def _safe_get_robot_state(rc: RobotController) -> Tuple[Optional[List[float]], Optional[List[float]], bool]:
-    """Attempt to get current joint and cartesian states.
-    Returns (joints, cartesian, connected_flag)."""
+    """Attempt to get current joint and TCP states.
+    Returns (joints, tcp, connected_flag)."""
     try:
         joints, cart = rc.get_current_position()
         return joints, cart, True
@@ -90,6 +94,20 @@ def _safe_get_robot_state(rc: RobotController) -> Tuple[Optional[List[float]], O
         except Exception as re:
             sys.stderr.write(f"reconnect failed: {type(re).__name__}: {re}\n")
         return None, None, False
+
+
+def _safe_get_base_pose(rc: RobotController) -> Optional[List[float]]:
+    try:
+        return rc.get_current_base_pose()
+    except Exception:
+        return None
+
+
+def _safe_get_wobj(rc: RobotController) -> Tuple[Optional[List[float]], Optional[int]]:
+    try:
+        return rc.get_current_wobj_offset(), rc.get_current_wobj_id()
+    except Exception:
+        return None, None
 
 
 def _safe_get_pressure(mc: MicrocontrollerCommunication) -> Optional[float]:
@@ -203,31 +221,43 @@ def main() -> int:
     print(f"Monitor frequency: {READ_FREQUENCY_HZ:.2f} Hz\nPress Ctrl+C to stop.\n")
 
     prev_joints: Optional[List[float]] = None
-    prev_cart: Optional[List[float]] = None
+    prev_tcp: Optional[List[float]] = None
+    prev_base: Optional[List[float]] = None
+    prev_wobj: Optional[List[float]] = None
     last_line_len = 0
 
     try:
         while True:
             ts = datetime.now().strftime(PRINT_DATETIME_FORMAT)
 
-            joints_raw, cart_raw, connected = _safe_get_robot_state(rc)
+            joints_raw, tcp_raw, connected = _safe_get_robot_state(rc)
+            base_raw = _safe_get_base_pose(rc)
+            wobj_raw, wobj_id = _safe_get_wobj(rc)
             pressure = _safe_get_pressure(mc)
 
             # Filter sequences for consistency
             joints_filtered, joints_discarded = _filter_sequence(joints_raw, prev_joints, MAX_JOINT_ABS, MAX_JOINT_DELTA)
-            cart_filtered, cart_discarded = _filter_cartesian(cart_raw, prev_cart)
+            tcp_filtered, tcp_discarded = _filter_cartesian(tcp_raw, prev_tcp)
+            base_filtered, base_discarded = _filter_cartesian(base_raw, prev_base)
+            wobj_filtered, wobj_discarded = _filter_cartesian(wobj_raw, prev_wobj)
 
             if not joints_discarded:
                 prev_joints = joints_filtered
-            if not cart_discarded:
-                prev_cart = cart_filtered
+            if not tcp_discarded:
+                prev_tcp = tcp_filtered
+            if not base_discarded:
+                prev_base = base_filtered
+            if not wobj_discarded:
+                prev_wobj = wobj_filtered
 
             line = (
                 f"[{ts}] robot_connected={connected} "
                 f"joints={_fmt_list(joints_filtered, 2)} "
-                f"tcp={_fmt_list(cart_filtered, 3)} "
+                f"TCP pose={_fmt_list(tcp_filtered, 3)} "
+                f"Base pose={_fmt_list(base_filtered, 3)} "
+                f"WObj id={wobj_id if wobj_id is not None else 'None'} WObj offset={_fmt_list(wobj_filtered, 3)} "
                 f"pressure={(f'{pressure:.2f}' if pressure is not None else 'None')} "
-                f"discarded_joints={joints_discarded} discarded_tcp={cart_discarded}"
+                f"discarded_joints={joints_discarded} discarded_tcp={tcp_discarded} discarded_base={base_discarded} discarded_wobj={wobj_discarded}"
             )
 
             if SINGLE_LINE_OUTPUT:
@@ -238,7 +268,7 @@ def main() -> int:
             else:
                 print(line)
 
-            # CSV row: j1..j6, x, y, z, rx, ry, rz, pressure, discarded_flag(any)
+            # CSV row: j1..j6, tcp_x..tcp_rz, base_x..base_rz, wobj_x..wobj_rz, wobj_id, pressure, flags
             if csv_writer is not None:
                 j_vals = [""] * 6
                 if joints_filtered is not None and len(joints_filtered) >= 6:
@@ -246,16 +276,32 @@ def main() -> int:
                         j_vals = [f"{joints_filtered[i]:.2f}" if joints_filtered[i] is not None else "" for i in range(6)]
                     except Exception:
                         pass
-                coord_vals = [""] * 6
-                if cart_filtered is not None and len(cart_filtered) >= 6:
+                tcp_vals = [""] * 6
+                if tcp_filtered is not None and len(tcp_filtered) >= 6:
                     try:
-                        coord_vals = [f"{cart_filtered[i]:.3f}" if cart_filtered[i] is not None else "" for i in range(6)]
+                        tcp_vals = [f"{tcp_filtered[i]:.3f}" if tcp_filtered[i] is not None else "" for i in range(6)]
                     except Exception:
                         pass
+                base_vals = [""] * 6
+                if base_filtered is not None and len(base_filtered) >= 6:
+                    try:
+                        base_vals = [f"{base_filtered[i]:.3f}" if base_filtered[i] is not None else "" for i in range(6)]
+                    except Exception:
+                        pass
+                wobj_vals = [""] * 6
+                if wobj_filtered is not None and len(wobj_filtered) >= 6:
+                    try:
+                        wobj_vals = [f"{wobj_filtered[i]:.3f}" if wobj_filtered[i] is not None else "" for i in range(6)]
+                    except Exception:
+                        pass
+                wobj_id_str = str(wobj_id) if isinstance(wobj_id, int) else ""
                 pressure_str = f"{pressure:.2f}" if pressure is not None else ""
-                discarded_flag = "1" if (joints_discarded or cart_discarded) else "0"
+                discarded_any = "1" if (joints_discarded or tcp_discarded or base_discarded or wobj_discarded) else "0"
                 try:
-                    csv_writer.writerow([*j_vals, *coord_vals, pressure_str, discarded_flag])
+                    csv_writer.writerow([
+                        *j_vals, *tcp_vals, *base_vals, *wobj_vals, wobj_id_str,
+                        pressure_str, discarded_any, str(int(joints_discarded)), str(int(tcp_discarded)), str(int(base_discarded)), str(int(wobj_discarded))
+                    ])
                     csv_file.flush()  # type: ignore[union-attr]
                 except Exception as e:
                     # Non-fatal; continue monitoring
